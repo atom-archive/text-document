@@ -5,8 +5,14 @@ module.exports =
 class TransformIterator
   constructor: (@transform, @sourceIterator) ->
     @bufferedOutputs = []
-    @sourcePosition = Point.zero()
-    @targetPosition = Point.zero()
+    @bufferedPositions = []
+    @bufferedSourcePositions = []
+
+    @bufferedSourcePosition = Point.zero()
+    @bufferedPosition = Point.zero()
+
+    @readSourcePosition = Point.zero()
+    @readPosition = Point.zero()
 
     @transformSource =
       consume: @consumeSource.bind(this)
@@ -17,19 +23,27 @@ class TransformIterator
   read: ->
     unless @bufferedOutputs.length > 0
       @transform.operate(@transformSource, @transformTarget)
+    @readPosition = @bufferedPositions.shift()
+    @readSourcePosition = @bufferedSourcePositions.shift()
     @bufferedOutputs.shift()
+
+  getPosition: ->
+    @readPosition
+
+  getSourcePosition: ->
+    @readSourcePosition
 
   ##
   # Transform Source
   ##
 
   readSource: ->
-    @bufferedChunk ?= @sourceIterator.read()
+    @bufferedSourceOutput ?= @sourceIterator.read()
 
   consumeSource: (count) ->
-    @sourcePosition.column += count
-    @bufferedChunk = @bufferedChunk.slice(count)
-    @bufferedChunk = null if @bufferedChunk is ""
+    @bufferedSourcePosition.column += count
+    @bufferedSourceOutput = @bufferedSourceOutput.slice(count)
+    @bufferedSourceOutput = null if @bufferedSourceOutput is ""
 
   ##
   # Transform Target
@@ -40,8 +54,11 @@ class TransformIterator
       when EOF
         null
       when Newline
-        @targetPosition.column = 0
-        @targetPosition.row++
+        @bufferedPosition.column = 0
+        @bufferedPosition.row++
       else
-        @targetPosition.column += output.length
+        @bufferedPosition.column += output.length
+
+    @bufferedSourcePositions.push(@bufferedSourcePosition.copy())
+    @bufferedPositions.push(@bufferedPosition.copy())
     @bufferedOutputs.push(output)
