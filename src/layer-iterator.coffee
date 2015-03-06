@@ -4,20 +4,18 @@ Point = require "./point"
 module.exports =
 class LayerIterator
   constructor: (@layer, sourceIterator) ->
-    @transformDelegate = new TransformDelegate(sourceIterator)
     @position = Point.zero()
     @sourcePosition = Point.zero()
+    @transformDelegate = new TransformDelegate(sourceIterator)
 
   next: ->
     unless @transformDelegate.bufferedOutputs.length > 0
       @layer.transform.operate(@transformDelegate)
-    @position = @transformDelegate.bufferedPositions.shift()
-    @sourcePosition = @transformDelegate.bufferedSourcePositions.shift()
-    value = @transformDelegate.bufferedOutputs.shift()
-    if value is EOF
+    {@position, @sourcePosition, content} = @transformDelegate.bufferedOutputs.shift()
+    if content is EOF
       {done: true}
     else
-      {value, done: false}
+      {done: false, value: content}
 
   seek: (position) ->
     @position = Point.zero()
@@ -26,16 +24,16 @@ class LayerIterator
     return if position.isZero()
 
     until @position.compare(position) >= 0
-      lastReadPosition = @position
-      lastReadSourcePosition = @sourcePosition
-      {value, done} = @next()
+      lastPosition = @position
+      lastSourcePosition = @sourcePosition
+      {done} = @next()
       return if done
 
     unless @position.compare(position) is 0
-      overshoot = position.column - lastReadPosition.column
-      lastReadSourcePosition.column += overshoot
+      overshoot = position.column - lastPosition.column
+      lastSourcePosition.column += overshoot
       @position = position
-      @sourcePosition = lastReadSourcePosition
+      @sourcePosition = lastSourcePosition
     @transformDelegate.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (position) ->
@@ -45,15 +43,15 @@ class LayerIterator
     return if position.isZero()
 
     until @sourcePosition.compare(position) >= 0
-      lastReadPosition = @position
-      lastReadSourcePosition = @sourcePosition
-      {value, done} = @next()
+      lastPosition = @position
+      lastSourcePosition = @sourcePosition
+      {done} = @next()
       break if done
 
-    overshoot = position.column - lastReadSourcePosition.column
-    lastReadPosition.column += overshoot
-    @transformDelegate.reset(lastReadPosition, position)
-    @position = lastReadPosition
+    overshoot = position.column - lastSourcePosition.column
+    lastPosition.column += overshoot
+    @transformDelegate.reset(lastPosition, position)
+    @position = lastPosition
     @sourcePosition = position
 
   getPosition: ->
@@ -67,21 +65,18 @@ class TransformDelegate
     @reset(Point.zero(), Point.zero())
 
   reset: (position, sourcePosition) ->
-    @sourceIterator.seek(sourcePosition)
     @position = position
     @sourcePosition = sourcePosition
-    @bufferedSourceOutput = null
     @bufferedOutputs = []
-    @bufferedPositions = []
-    @bufferedSourcePositions = []
+    @bufferedSourceOutput = null
+    @sourceIterator.seek(sourcePosition)
 
   read: =>
-    @bufferedSourceOutput ?= @sourceIterator.next().value
+    @bufferedSourceOutput or= @sourceIterator.next().value
 
   consume: (count) =>
     @sourcePosition.column += count
-    @bufferedSourceOutput = @bufferedSourceOutput.slice(count)
-    @bufferedSourceOutput = null if @bufferedSourceOutput is ""
+    @bufferedSourceOutput = @bufferedSourceOutput.substring(count)
 
   produce: (output) =>
     switch output
@@ -93,6 +88,8 @@ class TransformDelegate
       else
         @position.column += output.length
 
-    @bufferedSourcePositions.push(@sourcePosition.copy())
-    @bufferedPositions.push(@position.copy())
-    @bufferedOutputs.push(output)
+    @bufferedOutputs.push(
+      content: output
+      position: @position.copy()
+      sourcePosition: @sourcePosition.copy()
+    )
