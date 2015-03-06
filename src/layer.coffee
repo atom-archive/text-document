@@ -1,11 +1,16 @@
+{Emitter} = require "event-kit"
 {EOF, Newline} = require "./symbols"
 Point = require "./point"
 LayerIterator = require "./layer-iterator"
 
 module.exports =
 class Layer
+  pendingChangeOldExtent: null
+
   constructor: (@transform, @sourceLayer) ->
-    @regions = []
+    @emitter = new Emitter
+    @sourceLayer.onWillChange(@sourceLayerWillChange)
+    @sourceLayer.onDidChange(@sourceLayerDidChange)
 
   getLines: ->
     result = []
@@ -25,6 +30,7 @@ class Layer
   slice: (start, end) ->
     result = ""
     iterator = @[Symbol.iterator]()
+
     iterator.seek(start)
     loop
       {value, done} = iterator.next()
@@ -40,3 +46,25 @@ class Layer
 
   @::[Symbol.iterator] = ->
     new LayerIterator(this, @sourceLayer[Symbol.iterator]())
+
+  onDidChange: (fn) ->
+    @emitter.on("did-change", fn)
+
+  sourceLayerWillChange: ({position, oldExtent}) =>
+    iterator = @[Symbol.iterator]()
+    iterator.seekToSourcePosition(position)
+    startPosition = iterator.getPosition()
+    iterator.seekToSourcePosition(position.traverse(oldExtent))
+    @pendingChangeOldExtent = iterator.getPosition().traversalFrom(startPosition)
+
+  sourceLayerDidChange: ({position, newExtent}) =>
+    iterator = @[Symbol.iterator]()
+    iterator.seekToSourcePosition(position)
+    startPosition = iterator.getPosition()
+    iterator.seekToSourcePosition(position.traverse(newExtent))
+
+    oldExtent = @pendingChangeOldExtent
+    newExtent = iterator.getPosition().traversalFrom(startPosition)
+    @pendingChangeOldExtent = null
+
+    @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}

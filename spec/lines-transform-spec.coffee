@@ -67,6 +67,9 @@ describe "LinesTransform", ->
         charactersLayer = new CharactersLayer("\nabc\ndefg\n")
         layer = new Layer(new LinesTransform, charactersLayer)
 
+        events = []
+        layer.onDidChange (event) -> events.push(event)
+
         charactersLayer.splice(Point(0, "\nabc\nd".length), Point(0, 1), "x\nyz")
 
         expect(layer.getLines()).toEqual [
@@ -76,3 +79,9 @@ describe "LinesTransform", ->
           "yzfg\n"
           ""
         ]
+
+        expect(events).toEqual([{
+          position: Point(2, 1)
+          oldExtent: Point(0, 1)
+          newExtent: Point(1, 2)
+        }])

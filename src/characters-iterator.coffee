@@ -2,14 +2,15 @@
 
 module.exports =
 class CharactersIterator
-  constructor: (@text) ->
-    @position = 0
+  constructor: (@charactersLayer) ->
+    @seek(0)
 
   next: ->
-    if @position is @text.length
+    result = if @position >= @charactersLayer.content.length
       {value: EOF, done: true}
     else
-      @position = @text.length
-      {value: @text, done: false}
+      {value: @charactersLayer.content.slice(@position.column), done: false}
+    @position = @charactersLayer.content.length
+    result
 
   seek: (@position) ->

@@ -3,16 +3,16 @@ Point = require "./point"
 
 module.exports =
 class LayerIterator
-  constructor: (@layer, @sourceIterator) ->
-    @transformDelegate = new TransformDelegate(@sourceIterator)
-    @readPosition = Point.zero()
-    @readSourcePosition = Point.zero()
+  constructor: (@layer, sourceIterator) ->
+    @transformDelegate = new TransformDelegate(sourceIterator)
+    @position = Point.zero()
+    @sourcePosition = Point.zero()
 
   next: ->
     unless @transformDelegate.bufferedOutputs.length > 0
       @layer.transform.operate(@transformDelegate)
-    @readPosition = @transformDelegate.bufferedPositions.shift()
-    @readSourcePosition = @transformDelegate.bufferedSourcePositions.shift()
+    @position = @transformDelegate.bufferedPositions.shift()
+    @sourcePosition = @transformDelegate.bufferedSourcePositions.shift()
     value = @transformDelegate.bufferedOutputs.shift()
     if value is EOF
       {done: true}
@@ -20,33 +20,56 @@ class LayerIterator
       {value, done: false}
 
   seek: (position) ->
-    @readPosition = Point.zero()
-    @readSourcePosition = Point.zero()
-    @sourceIterator.seek(@readSourcePosition)
+    @position = Point.zero()
+    @sourcePosition = Point.zero()
+    @transformDelegate.reset(@position, @sourcePosition)
     return if position.isZero()
 
-    until @readPosition.compare(position) >= 0
-      lastReadPosition = @readPosition
-      lastReadSourcePosition = @readSourcePosition
+    until @position.compare(position) >= 0
+      lastReadPosition = @position
+      lastReadSourcePosition = @sourcePosition
       {value, done} = @next()
-      return false if done
+      return if done
 
-    overshoot = @readPosition.column - position.column
-    lastReadSourcePosition.column += overshoot
-    @sourceIterator.seek(lastReadSourcePosition)
-    @readPosition = position
-    true
+    unless @position.compare(position) is 0
+      overshoot = position.column - lastReadPosition.column
+      lastReadSourcePosition.column += overshoot
+      @position = position
+      @sourcePosition = lastReadSourcePosition
+    @transformDelegate.reset(@position, @sourcePosition)
+
+  seekToSourcePosition: (position) ->
+    @position = Point.zero()
+    @sourcePosition = Point.zero()
+    @transformDelegate.reset(@position, @sourcePosition)
+    return if position.isZero()
+
+    until @sourcePosition.compare(position) >= 0
+      lastReadPosition = @position
+      lastReadSourcePosition = @sourcePosition
+      {value, done} = @next()
+      break if done
+
+    overshoot = position.column - lastReadSourcePosition.column
+    lastReadPosition.column += overshoot
+    @transformDelegate.reset(lastReadPosition, position)
+    @position = lastReadPosition
+    @sourcePosition = position
 
   getPosition: ->
-    @readPosition
+    @position
 
   getSourcePosition: ->
-    @readSourcePosition
+    @sourcePosition
 
 class TransformDelegate
   constructor: (@sourceIterator) ->
-    @bufferedSourcePosition = Point.zero()
-    @bufferedPosition = Point.zero()
+    @reset(Point.zero(), Point.zero())
+
+  reset: (position, sourcePosition) ->
+    @sourceIterator.seek(sourcePosition)
+    @position = position
+    @sourcePosition = sourcePosition
     @bufferedSourceOutput = null
     @bufferedOutputs = []
     @bufferedPositions = []
@@ -56,7 +79,7 @@ class TransformDelegate
     @bufferedSourceOutput ?= @sourceIterator.next().value
 
   consume: (count) =>
-    @bufferedSourcePosition.column += count
+    @sourcePosition.column += count
     @bufferedSourceOutput = @bufferedSourceOutput.slice(count)
     @bufferedSourceOutput = null if @bufferedSourceOutput is ""
 
@@ -65,11 +88,11 @@ class TransformDelegate
       when EOF
         null
       when Newline
-        @bufferedPosition.column = 0
-        @bufferedPosition.row++
+        @position.column = 0
+        @position.row++
       else
-        @bufferedPosition.column += output.length
+        @position.column += output.length
 
-    @bufferedSourcePositions.push(@bufferedSourcePosition.copy())
-    @bufferedPositions.push(@bufferedPosition.copy())
+    @bufferedSourcePositions.push(@sourcePosition.copy())
+    @bufferedPositions.push(@position.copy())
     @bufferedOutputs.push(output)

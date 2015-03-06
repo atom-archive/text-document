@@ -12,7 +12,7 @@ class LinesTransform
         switch (i = input.indexOf("\n", i))
           when -1
             consume(input.length)
-            target.produce(input)
+            produce(input)
           when 0
             consume(1)
             produce("\n")
