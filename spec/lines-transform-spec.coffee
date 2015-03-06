@@ -61,3 +61,18 @@ describe "LinesTransform", ->
 
         expect(layer.slice(Point(0, 0), Point(1, 0))).toBe "\n"
         expect(layer.slice(Point(1, 0), Point(2, 0))).toBe "abc\n"
+
+    describe "when the source layer's content changes", ->
+      it "emits an event and returns content based on the new source content", ->
+        charactersLayer = new CharactersLayer("\nabc\ndefg\n")
+        layer = new Layer(new LinesTransform, charactersLayer)
+
+        charactersLayer.splice(Point(0, "\nabc\nd".length), Point(0, 1), "x\nyz")
+
+        expect(layer.getLines()).toEqual [
+          "\n"
+          "abc\n"
+          "dx\n"
+          "yzfg\n"
+          ""
+        ]
