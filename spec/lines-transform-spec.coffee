@@ -42,6 +42,18 @@ describe "LinesTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
   describe "layer", ->
+    describe ".getLines()", ->
+      it "returns the content as an array of lines", ->
+        charactersLayer = new CharactersLayer("\nabc\ndefg\n")
+        layer = new Layer(new LinesTransform, charactersLayer)
+
+        expect(layer.getLines()).toEqual [
+          "\n"
+          "abc\n"
+          "defg\n"
+          ""
+        ]
+
     describe ".slice(start, end)", ->
       it "returns the content between the start and end points", ->
         charactersLayer = new CharactersLayer("\nabc\ndefg\n")

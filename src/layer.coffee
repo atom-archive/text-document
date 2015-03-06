@@ -7,6 +7,21 @@ class Layer
   constructor: (@transform, @sourceLayer) ->
     @regions = []
 
+  getLines: ->
+    result = []
+    currentLine = ""
+    iterator = @[Symbol.iterator]()
+    loop
+      {value, done} = iterator.next()
+      break if done
+      if value is Newline
+        result.push(currentLine)
+        currentLine = ""
+      else
+        currentLine += value
+    result.push(currentLine)
+    result
+
   slice: (start, end) ->
     result = ""
     iterator = @[Symbol.iterator]()
