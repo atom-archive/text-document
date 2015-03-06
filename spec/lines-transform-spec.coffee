@@ -1,33 +1,51 @@
-{EOF, Newline} = require "../src/symbols"
+{Newline} = require "../src/symbols"
 Point = require "../src/point"
 LinesTransform = require "../src/lines-transform"
-TransformIterator = require "../src/transform-iterator"
-CharactersIterator = require "../src/characters-iterator"
+CharactersLayer = require "../src/characters-layer"
+Layer = require "../src/layer"
 
 describe "LinesTransform", ->
+  layer = null
+
+  beforeEach ->
+    layer = new Layer(new LinesTransform, new CharactersLayer("\nabc\ndefg\n"))
+
   it "breaks the source text into lines", ->
-    linesIterator = new TransformIterator(new LinesTransform, new CharactersIterator("\nabc\ndefg\n"))
-    expect(linesIterator.read()).toBe(Newline)
-    expect(linesIterator.getPosition()).toEqual(Point(1, 0))
-    expect(linesIterator.getSourcePosition()).toEqual(Point(0, 1))
+    iterator = layer[Symbol.iterator]()
+    expect(iterator.next()).toEqual(value: "\n", done: false)
+    expect(iterator.getPosition()).toEqual(Point(0, 1))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 1))
 
-    expect(linesIterator.read()).toBe("abc")
-    expect(linesIterator.getPosition()).toEqual(Point(1, 3))
-    expect(linesIterator.getSourcePosition()).toEqual(Point(0, 4))
+    expect(iterator.next()).toEqual(value: Newline, done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 1))
 
-    expect(linesIterator.read()).toBe(Newline)
-    expect(linesIterator.getPosition()).toEqual(Point(2, 0))
-    expect(linesIterator.getSourcePosition()).toEqual(Point(0, 5))
+    expect(iterator.next()).toEqual(value: "abc\n", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 4))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
 
-    expect(linesIterator.read()).toBe("defg")
-    expect(linesIterator.getPosition()).toEqual(Point(2, 4))
-    expect(linesIterator.getSourcePosition()).toEqual(Point(0, 9))
+    expect(iterator.next()).toEqual(value: Newline, done: false)
+    expect(iterator.getPosition()).toEqual(Point(2, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
 
-    expect(linesIterator.read()).toBe(Newline)
-    expect(linesIterator.getPosition()).toEqual(Point(3, 0))
-    expect(linesIterator.getSourcePosition()).toEqual(Point(0, 10))
+    expect(iterator.next()).toEqual(value: "defg\n", done: false)
+    expect(iterator.getPosition()).toEqual(Point(2, 5))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
-    expect(linesIterator.read()).toBe(EOF)
-    expect(linesIterator.read()).toBe(EOF)
-    expect(linesIterator.getPosition()).toEqual(Point(3, 0))
-    expect(linesIterator.getSourcePosition()).toEqual(Point(0, 10))
+    expect(iterator.next()).toEqual(value: Newline, done: false)
+    expect(iterator.getPosition()).toEqual(Point(3, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
+
+    expect(iterator.next()).toEqual(done: true)
+    expect(iterator.next()).toEqual(done: true)
+    expect(iterator.getPosition()).toEqual(Point(3, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
+
+  describe "layer", ->
+    describe ".slice(start, end)", ->
+      it "returns the content between the start and end points", ->
+        charactersLayer = new CharactersLayer("\nabc\ndefg\n")
+        layer = new Layer(new LinesTransform, charactersLayer)
+
+        expect(layer.slice(Point(0, 0), Point(1, 0))).toBe "\n"
+        expect(layer.slice(Point(1, 0), Point(2, 0))).toBe "abc\n"

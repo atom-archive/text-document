@@ -5,9 +5,11 @@ class CharactersIterator
   constructor: (@text) ->
     @position = 0
 
-  read: ->
+  next: ->
     if @position is @text.length
-      EOF
+      {value: EOF, done: true}
     else
       @position = @text.length
-      @text
+      {value: @text, done: false}
+
+  seek: (@position) ->

@@ -2,24 +2,22 @@
 
 module.exports =
 class LinesTransform
-  initialize: () ->
-
-  operate: (source, target) ->
-    switch (input = source.read())
+  operate: ({read, consume, produce}) ->
+    switch (input = read())
       when EOF
-        target.produce(EOF)
+        produce(EOF)
       when Newline
-        target.produce(Newline)
+        produce(Newline)
       else
         switch (i = input.indexOf("\n", i))
           when -1
-            source.consume(input.length)
+            consume(input.length)
             target.produce(input)
           when 0
-            source.consume(1)
-            target.produce(Newline)
+            consume(1)
+            produce("\n")
+            produce(Newline)
           else
-            source.consume(i)
-            target.produce(input.slice(0, i))
-            source.consume(1)
-            target.produce(Newline)
+            consume(i + 1)
+            produce(input.slice(0, i + 1))
+            produce(Newline)
