@@ -1,4 +1,5 @@
 fs = require "fs"
+Point = require "./point"
 
 module.exports =
 class FileLayer
@@ -22,28 +23,28 @@ class FileLayer
 class Iterator
   constructor: (@store) ->
     @bytePosition = 0
-    @charPosition = 0
+    @position = Point.zero()
 
   next: ->
     if chunk = @store.getChunk(@bytePosition)
-      @charPosition += chunk.length
+      @position.column += chunk.length
       @bytePosition += Buffer.byteLength(chunk)
       {done: false, value: chunk}
     else
       {done: true}
 
   seek: (position) ->
-    if @charPosition > position
+    if @position.column > position.column
       @bytePosition = 0
-      @charPosition = 0
+      @position.column = 0
 
-    until @charPosition is position
+    until @position.column is position.column
       if chunk = @store.getChunk(@bytePosition)
-        chunk = chunk.substring(0, position - @charPosition)
+        chunk = chunk.substring(0, position.column - @position.column)
         @bytePosition += Buffer.byteLength(chunk)
-        @charPosition += chunk.length
+        @position.column += chunk.length
       else
         break
 
   getPosition: ->
-    @charPosition
+    @position

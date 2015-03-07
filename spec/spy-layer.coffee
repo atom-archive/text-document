@@ -1,3 +1,5 @@
+Point = require "../src/point"
+
 module.exports =
 class SpyLayer
   constructor: (@text, @chunkSize) ->
@@ -13,20 +15,20 @@ class SpyLayer
     @recordedReads
 
 class Iterator
-  constructor: (@store) ->
-    @position = 0
+  constructor: (@layer) ->
+    @position = Point.zero()
 
   next: ->
-    previousPosition = @position
-    @position += @chunkSize
-    value = @store.text.substr(previousPosition, @store.chunkSize) or null
-    @store.recordedReads.push(value)
+    value = @layer.text.substr(@position.column, @layer.chunkSize) or null
+    @position.column += @layer.chunkSize
+    @layer.recordedReads.push(value)
     if value
       {done: false, value}
     else
       {done: true}
 
-  seek: (@position) ->
+  seek: (position) ->
+    @position = position.copy()
 
   getPosition: ->
     @position

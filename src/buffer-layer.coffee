@@ -1,3 +1,5 @@
+Point = require "./point"
+
 module.exports =
 class BufferLayer
   constructor: (@source) ->
@@ -6,17 +8,17 @@ class BufferLayer
     @activeRegionEnd = -Infinity
 
   getText: ->
-    @slice(0, Infinity)
+    @slice(Point.zero(), Point.infinity())
 
   slice: (start, size) ->
     text = ""
     iterator = @[Symbol.iterator]()
     iterator.seek(start)
-    until text.length >= size
+    until text.length >= size.column
       {value, done} = iterator.next()
       break if done
       text += value
-    text.slice(0, size)
+    text.slice(0, size.column)
 
   @::[Symbol.iterator] = ->
     new Iterator(this, @source[Symbol.iterator]())
@@ -28,25 +30,25 @@ class BufferLayer
   getActiveRegion: ->
     [@activeRegionStart, @activeRegionEnd]
 
-  getBufferedText: (position) ->
+  getBufferedText: ({column}) ->
     for region in @bufferedRegions
-      break if region.start > position
-      if (region.start <= position) and (position < region.start + region.content.length)
-        return region.content.slice(position - region.start)
+      break if region.start > column
+      if region.start <= column < region.start + region.content.length
+        return region.content.slice(column - region.start)
     null
 
-  addBufferedText: (position, chunk) ->
-    return unless @activeRegionStart <= position and position <= @activeRegionEnd
+  addBufferedText: ({column}, chunk) ->
+    return unless @activeRegionStart.column <= column <= @activeRegionEnd.column
     for region, i in @bufferedRegions
-      return if region.start is position
-      if region.start > position
-        @bufferedRegions.splice(i, 0, new BufferedRegion(position, chunk))
+      return if region.start is column
+      if region.start > column
+        @bufferedRegions.splice(i, 0, new BufferedRegion(column, chunk))
         return
-    @bufferedRegions.push(new BufferedRegion(position, chunk))
+    @bufferedRegions.push(new BufferedRegion(column, chunk))
 
 class Iterator
   constructor: (@layer, @sourceIterator) ->
-    @position = 0
+    @position = Point.zero()
 
   next: ->
     unless chunk = @layer.getBufferedText(@position)
@@ -56,7 +58,7 @@ class Iterator
       chunk = next.value
       @layer.addBufferedText(@position, chunk)
 
-    @position += chunk.length
+    @position.column += chunk.length
     {done: false, value: chunk}
 
   seek: (@position) ->

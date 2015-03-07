@@ -1,3 +1,4 @@
+Point = require "../src/point"
 SpyLayer = require "./spy-layer"
 BufferLayer = require "../src/buffer-layer"
 
@@ -17,11 +18,11 @@ describe "BufferLayer", ->
       source = new SpyLayer("abcdefghijkl", 3)
       buffer = new BufferLayer(source)
 
-      expect(buffer.slice(1, 3)).toBe "bcd"
+      expect(buffer.slice(Point(0, 1), Point(0, 3))).toBe "bcd"
       expect(source.getRecordedReads()).toEqual ["bcd"]
       source.reset()
 
-      expect(buffer.slice(2, 4)).toBe "cdef"
+      expect(buffer.slice(Point(0, 2), Point(0, 4))).toBe "cdef"
       expect(source.getRecordedReads()).toEqual ["cde", "fgh"]
 
   describe "iteration", ->
@@ -29,24 +30,24 @@ describe "BufferLayer", ->
       source = new SpyLayer("abcdefghijkl", 3)
       buffer = new BufferLayer(source)
       iterator = buffer[Symbol.iterator]()
-      iterator.seek(3)
+      iterator.seek(Point(0, 3))
 
       expect(iterator.next()).toEqual(value:"def", done: false)
-      expect(iterator.getPosition()).toBe 6
+      expect(iterator.getPosition()).toEqual(Point(0, 6))
 
       expect(iterator.next()).toEqual(value:"ghi", done: false)
-      expect(iterator.getPosition()).toBe 9
+      expect(iterator.getPosition()).toEqual(Point(0, 9))
 
       expect(iterator.next()).toEqual(value:"jkl", done: false)
-      expect(iterator.getPosition()).toBe 12
+      expect(iterator.getPosition()).toEqual(Point(0, 12))
 
       expect(iterator.next()).toEqual(done: true)
-      expect(iterator.getPosition()).toBe 12
+      expect(iterator.getPosition()).toEqual(Point(0, 12))
 
       expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", null]
       source.reset()
 
-      iterator.seek(5)
+      iterator.seek(Point(0, 5))
       expect(iterator.next()).toEqual(value:"fgh", done: false)
 
   describe "::setActiveRegion(start, end)", ->
@@ -62,7 +63,7 @@ describe "BufferLayer", ->
       expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", null]
       source.reset()
 
-      buffer.setActiveRegion(3, 9)
+      buffer.setActiveRegion(Point(0, 3), Point(0, 9))
 
       buffer.getText()
       expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", null]
@@ -76,5 +77,5 @@ describe "BufferLayer", ->
       buffer = new BufferLayer(source)
       expect(buffer.getActiveRegion()).toEqual([Infinity, -Infinity])
 
-      buffer.setActiveRegion(3, 9)
-      expect(buffer.getActiveRegion()).toEqual([3, 9])
+      buffer.setActiveRegion(Point(0, 3), Point(0, 9))
+      expect(buffer.getActiveRegion()).toEqual([Point(0, 3), Point(0, 9)])

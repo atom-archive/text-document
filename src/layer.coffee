@@ -1,5 +1,5 @@
 {Emitter} = require "event-kit"
-{EOF, Newline} = require "./symbols"
+{Newline} = require "./symbols"
 Point = require "./point"
 LayerIterator = require "./layer-iterator"
 
