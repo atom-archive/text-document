@@ -1,14 +1,14 @@
 {Emitter} = require "event-kit"
+{EOF} = require "./symbols"
 Point = require "./point"
-CharactersIterator = require "./characters-iterator"
 
 module.exports =
-class CharactersLayer
+class StringLayer
   constructor: (@content) ->
     @emitter = new Emitter
 
   @::[Symbol.iterator] = ->
-    new CharactersIterator(this)
+    new Iterator(this)
 
   splice: (position, oldExtent, content) ->
     @assertValidPosition(position)
@@ -32,3 +32,17 @@ class CharactersLayer
   assertValidPosition: (position) ->
     unless position.row is 0 and 0 <= position.column <= @content.length
       throw new Error("Invalid position #{position}")
+
+class Iterator
+  constructor: (@layer) ->
+    @seek(0)
+
+  next: ->
+    result = if @position >= @layer.content.length
+      {value: EOF, done: true}
+    else
+      {value: @layer.content.slice(@position.column), done: false}
+    @position = @layer.content.length
+    result
+
+  seek: (@position) ->

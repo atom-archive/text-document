@@ -1,14 +1,14 @@
 {Newline} = require "../src/symbols"
 Point = require "../src/point"
 LinesTransform = require "../src/lines-transform"
-CharactersLayer = require "../src/characters-layer"
+StringLayer = require "../src/string-layer"
 Layer = require "../src/layer"
 
 describe "LinesTransform", ->
   layer = null
 
   beforeEach ->
-    layer = new Layer(new LinesTransform, new CharactersLayer("\nabc\ndefg\n"))
+    layer = new Layer(new LinesTransform, new StringLayer("\nabc\ndefg\n"))
 
   it "breaks the source text into lines", ->
     iterator = layer[Symbol.iterator]()
@@ -44,7 +44,7 @@ describe "LinesTransform", ->
   describe "layer", ->
     describe ".getLines()", ->
       it "returns the content as an array of lines", ->
-        charactersLayer = new CharactersLayer("\nabc\ndefg\n")
+        charactersLayer = new StringLayer("\nabc\ndefg\n")
         layer = new Layer(new LinesTransform, charactersLayer)
 
         expect(layer.getLines()).toEqual [
@@ -56,7 +56,7 @@ describe "LinesTransform", ->
 
     describe ".slice(start, end)", ->
       it "returns the content between the start and end points", ->
-        charactersLayer = new CharactersLayer("\nabc\ndefg\n")
+        charactersLayer = new StringLayer("\nabc\ndefg\n")
         layer = new Layer(new LinesTransform, charactersLayer)
 
         expect(layer.slice(Point(0, 0), Point(1, 0))).toBe "\n"
@@ -64,7 +64,7 @@ describe "LinesTransform", ->
 
     describe "when the source layer's content changes", ->
       it "emits an event and returns content based on the new source content", ->
-        charactersLayer = new CharactersLayer("\nabc\ndefg\n")
+        charactersLayer = new StringLayer("\nabc\ndefg\n")
         layer = new Layer(new LinesTransform, charactersLayer)
 
         events = []
