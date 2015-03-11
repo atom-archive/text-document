@@ -4,21 +4,18 @@ module.exports =
 class BufferLayer
   constructor: (@source) ->
     @bufferedRegions = []
-    @activeRegionStart = Infinity
-    @activeRegionEnd = -Infinity
+    @activeRegionStart = Point.infinity()
+    @activeRegionEnd = Point.infinity()
 
-  getText: ->
-    @slice(Point.zero(), Point.infinity())
-
-  slice: (start, size) ->
+  slice: (start = Point.zero(), end = Point.infinity()) ->
     text = ""
     iterator = @[Symbol.iterator]()
     iterator.seek(start)
-    until text.length >= size.column
+    until text.length >= end.column
       {value, done} = iterator.next()
       break if done
       text += value
-    text.slice(0, size.column)
+    text.slice(0, end.column)
 
   @::[Symbol.iterator] = ->
     new Iterator(this, @source[Symbol.iterator]())
@@ -26,9 +23,6 @@ class BufferLayer
   setActiveRegion: (start, end) ->
     @activeRegionStart = start
     @activeRegionEnd = end
-
-  getActiveRegion: ->
-    [@activeRegionStart, @activeRegionEnd]
 
   getBufferedText: ({column}) ->
     for region in @bufferedRegions
@@ -38,7 +32,9 @@ class BufferLayer
     null
 
   addBufferedText: ({column}, chunk) ->
-    return unless @activeRegionStart.column <= column <= @activeRegionEnd.column
+    return if column + chunk.length < @activeRegionStart.column
+    return if column > @activeRegionEnd.column
+
     for region, i in @bufferedRegions
       return if region.start is column
       if region.start > column

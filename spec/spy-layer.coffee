@@ -1,4 +1,5 @@
 Point = require "../src/point"
+{EOF} = require "../src/symbols"
 
 module.exports =
 class SpyLayer
@@ -19,13 +20,10 @@ class Iterator
     @position = Point.zero()
 
   next: ->
-    value = @layer.text.substr(@position.column, @layer.chunkSize) or null
+    value = @layer.text.substr(@position.column, @layer.chunkSize) or EOF
     @position.column += @layer.chunkSize
     @layer.recordedReads.push(value)
-    if value
-      {done: false, value}
-    else
-      {done: true}
+    {value, done: value is EOF}
 
   seek: (position) ->
     @position = position.copy()

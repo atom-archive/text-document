@@ -1,20 +1,11 @@
 Point = require "../src/point"
+{EOF} = require "../src/symbols"
 SpyLayer = require "./spy-layer"
 BufferLayer = require "../src/buffer-layer"
 
 describe "BufferLayer", ->
-  describe "::getText()", ->
-    it "returns the entire input text", ->
-      source = new SpyLayer("abcdefghijkl", 3)
-      buffer = new BufferLayer(source)
-
-      expect(buffer.getText()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", null]
-
-      expect(buffer.getText()).toBe "abcdefghijkl"
-
-  describe "::slice(start, size)", ->
-    it "returns a substring of the input text with the given start index and size", ->
+  describe "::slice(start, end)", ->
+    it "returns the content between the given start and end positions", ->
       source = new SpyLayer("abcdefghijkl", 3)
       buffer = new BufferLayer(source)
 
@@ -24,6 +15,13 @@ describe "BufferLayer", ->
 
       expect(buffer.slice(Point(0, 2), Point(0, 4))).toBe "cdef"
       expect(source.getRecordedReads()).toEqual ["cde", "fgh"]
+
+    it "returns the entire input text when no bounds are given", ->
+      source = new SpyLayer("abcdefghijkl", 3)
+      buffer = new BufferLayer(source)
+
+      expect(buffer.slice()).toBe "abcdefghijkl"
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
 
   describe "iteration", ->
     it "returns an iterator into the buffer", ->
@@ -41,10 +39,10 @@ describe "BufferLayer", ->
       expect(iterator.next()).toEqual(value:"jkl", done: false)
       expect(iterator.getPosition()).toEqual(Point(0, 12))
 
-      expect(iterator.next()).toEqual(done: true)
+      expect(iterator.next()).toEqual(value: EOF, done: true)
       expect(iterator.getPosition()).toEqual(Point(0, 12))
 
-      expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", null]
+      expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", EOF]
       source.reset()
 
       iterator.seek(Point(0, 5))
@@ -55,27 +53,23 @@ describe "BufferLayer", ->
       source = new SpyLayer("abcdefghijkl", 3)
       buffer = new BufferLayer(source)
 
-      buffer.getText()
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", null]
+      expect(buffer.slice()).toBe "abcdefghijkl"
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
       source.reset()
 
-      buffer.getText()
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", null]
+      expect(buffer.slice()).toBe "abcdefghijkl"
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
       source.reset()
 
-      buffer.setActiveRegion(Point(0, 3), Point(0, 9))
+      buffer.setActiveRegion(Point(0, 4), Point(0, 7))
 
-      buffer.getText()
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", null]
+      expect(buffer.slice()).toBe "abcdefghijkl"
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
       source.reset()
 
-      buffer.getText()
-      expect(source.getRecordedReads()).toEqual ["abc", null]
+      expect(buffer.slice()).toBe "abcdefghijkl"
+      expect(source.getRecordedReads()).toEqual ["abc", "jkl", EOF]
+      source.reset()
 
-    it "allows the region to be retrieved with ::getActiveRegion", ->
-      source = new SpyLayer("abcdefghijkl", 3)
-      buffer = new BufferLayer(source)
-      expect(buffer.getActiveRegion()).toEqual([Infinity, -Infinity])
-
-      buffer.setActiveRegion(Point(0, 3), Point(0, 9))
-      expect(buffer.getActiveRegion()).toEqual([Point(0, 3), Point(0, 9)])
+      expect(buffer.slice(Point(0, 0), Point(0, 6))).toBe "abcdef"
+      expect(source.getRecordedReads()).toEqual ["abc"]
