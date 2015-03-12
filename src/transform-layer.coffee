@@ -45,7 +45,7 @@ class TransformLayer
     result
 
   @::[Symbol.iterator] = ->
-    new LayerIterator(this, @sourceLayer[Symbol.iterator]())
+    new TransformIterator(this, @sourceLayer[Symbol.iterator]())
 
   onDidChange: (fn) ->
     @emitter.on("did-change", fn)

@@ -6,12 +6,10 @@ class LayerIterator
   constructor: (@layer, sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformDelegate = new TransformDelegate(sourceIterator)
+    @transformBuffer = new TransformBuffer(@layer.transform, sourceIterator)
 
   next: ->
-    unless @transformDelegate.bufferedOutputs.length > 0
-      @layer.transform.operate(@transformDelegate)
-    {@position, @sourcePosition, content} = @transformDelegate.bufferedOutputs.shift()
+    {@position, @sourcePosition, content} = @transformBuffer.next()
     if content is EOF
       {done: true}
     else
@@ -20,7 +18,7 @@ class LayerIterator
   seek: (position) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformDelegate.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
     return if position.isZero()
 
     until @position.compare(position) >= 0
@@ -34,12 +32,12 @@ class LayerIterator
       lastSourcePosition.column += overshoot
       @position = position
       @sourcePosition = lastSourcePosition
-    @transformDelegate.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (position) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformDelegate.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
     return if position.isZero()
 
     until @sourcePosition.compare(position) >= 0
@@ -50,7 +48,7 @@ class LayerIterator
 
     overshoot = position.column - lastSourcePosition.column
     lastPosition.column += overshoot
-    @transformDelegate.reset(lastPosition, position)
+    @transformBuffer.reset(lastPosition, position)
     @position = lastPosition
     @sourcePosition = position
 
@@ -60,23 +58,27 @@ class LayerIterator
   getSourcePosition: ->
     @sourcePosition
 
-class TransformDelegate
-  constructor: (@sourceIterator) ->
+class TransformBuffer
+  constructor: (@transform, @sourceIterator) ->
     @reset(Point.zero(), Point.zero())
+
+  next: ->
+    @transform.operate(this) unless @outputs.length > 0
+    @outputs.shift()
 
   reset: (position, sourcePosition) ->
     @position = position
     @sourcePosition = sourcePosition
-    @bufferedOutputs = []
-    @bufferedSourceOutput = null
+    @outputs = []
+    @currentSourceOutput = null
     @sourceIterator.seek(sourcePosition)
 
   read: =>
-    @bufferedSourceOutput or= @sourceIterator.next().value
+    @currentSourceOutput or= @sourceIterator.next().value
 
   consume: (count) =>
     @sourcePosition.column += count
-    @bufferedSourceOutput = @bufferedSourceOutput.substring(count)
+    @currentSourceOutput = @currentSourceOutput.substring(count)
 
   produce: (output) =>
     switch output
@@ -88,7 +90,7 @@ class TransformDelegate
       else
         @position.column += output.length
 
-    @bufferedOutputs.push(
+    @outputs.push(
       content: output
       position: @position.copy()
       sourcePosition: @sourcePosition.copy()
