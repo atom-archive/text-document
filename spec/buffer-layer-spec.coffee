@@ -23,6 +23,15 @@ describe "BufferLayer", ->
       expect(buffer.slice()).toBe "abcdefghijkl"
       expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
 
+  describe "::splice(start, extent, content)", ->
+    it "replaces the extent at the given position with the given content", ->
+      source = new SpyLayer("abcdefghijkl", 3)
+      buffer = new BufferLayer(source)
+
+      buffer.splice(Point(0, 2), Point(0, 3), "123")
+
+      expect(buffer.slice()).toBe "ab123fghijkl"
+
   describe "iteration", ->
     it "returns an iterator into the buffer", ->
       source = new SpyLayer("abcdefghijkl", 3)
