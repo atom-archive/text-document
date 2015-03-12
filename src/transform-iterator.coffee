@@ -2,7 +2,7 @@
 Point = require "./point"
 
 module.exports =
-class LayerIterator
+class TransformIterator
   constructor: (@layer, sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
