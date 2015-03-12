@@ -20,8 +20,11 @@ class Iterator
     @position = Point.zero()
 
   next: ->
-    value = @layer.text.substr(@position.column, @layer.chunkSize) or EOF
-    @position.column += @layer.chunkSize
+    if value = @layer.text.substr(@position.column, @layer.chunkSize)
+      @position.column += @layer.chunkSize
+    else
+      value = EOF
+
     @layer.recordedReads.push(value)
     {value, done: value is EOF}
 

@@ -1,11 +1,12 @@
 Point = require "./point"
+RegionMap = require "./region-map"
 
 module.exports =
 class BufferLayer
   constructor: (@source) ->
-    @bufferedRegions = []
-    @activeRegionStart = Point.infinity()
-    @activeRegionEnd = Point.infinity()
+    @bufferedContent = new RegionMap
+    @activeRegionStart = null
+    @activeRegionEnd = null
 
   slice: (start = Point.zero(), end = Point.infinity()) ->
     text = ""
@@ -18,50 +19,42 @@ class BufferLayer
     text.slice(0, end.column)
 
   @::[Symbol.iterator] = ->
-    new Iterator(this, @source[Symbol.iterator]())
+    new Iterator(this, @source[Symbol.iterator](), @bufferedContent[Symbol.iterator]())
 
   setActiveRegion: (start, end) ->
     @activeRegionStart = start
     @activeRegionEnd = end
 
-  getBufferedText: ({column}) ->
-    for region in @bufferedRegions
-      break if region.start > column
-      if region.start <= column < region.start + region.content.length
-        return region.content.slice(column - region.start)
-    null
-
-  addBufferedText: ({column}, chunk) ->
-    return if column + chunk.length < @activeRegionStart.column
-    return if column > @activeRegionEnd.column
-
-    for region, i in @bufferedRegions
-      return if region.start is column
-      if region.start > column
-        @bufferedRegions.splice(i, 0, new BufferedRegion(column, chunk))
-        return
-    @bufferedRegions.push(new BufferedRegion(column, chunk))
+  contentOverlapsActiveRegion: ({column}, content) ->
+    return false unless @activeRegionStart? and @activeRegionEnd?
+    not (column + content.length < @activeRegionStart.column) and
+      not (column > @activeRegionEnd.column)
 
 class Iterator
-  constructor: (@layer, @sourceIterator) ->
+  constructor: (@layer, @sourceIterator, @regionMapIterator) ->
     @position = Point.zero()
 
   next: ->
-    unless chunk = @layer.getBufferedText(@position)
-      @sourceIterator.seek(@position)
-      next = @sourceIterator.next()
-      return next if next.done
-      chunk = next.value
-      @layer.addBufferedText(@position, chunk)
+    if @regionMapIterator.getPosition().compare(@position) <= 0
+      @regionMapIterator.seek(@position)
+      {value, done} = @regionMapIterator.next()
+      if value.content?
+        @position = @regionMapIterator.getPosition()
+        return {value: value.content, done}
 
-    @position.column += chunk.length
-    {done: false, value: chunk}
+    @sourceIterator.seek(@position)
+    next = @sourceIterator.next()
+    {value, done} = next
+
+    if @layer.contentOverlapsActiveRegion(@position, value)
+      @regionMapIterator.seek(@position)
+      extent = Point(0, value.length ? 0)
+      @regionMapIterator.splice(extent, {extent, content: value})
+
+    @position = @sourceIterator.getPosition()
+    next
 
   seek: (@position) ->
-    @sourceIterator.seek(@position)
 
   getPosition: ->
     @position
-
-class BufferedRegion
-  constructor: (@start, @content) ->
