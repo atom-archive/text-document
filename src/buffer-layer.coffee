@@ -43,9 +43,9 @@ class Iterator
     if @regionMapIterator.getPosition().compare(@position) <= 0
       @regionMapIterator.seek(@position)
       next = @regionMapIterator.next()
-      if next.value.content?
+      if next.value?
         @position = @regionMapIterator.getPosition()
-        return {value: next.value.content, done: next.done}
+        return {value: next.value, done: next.done}
 
     @sourceIterator.seek(@position)
     next = @sourceIterator.next()
@@ -60,7 +60,7 @@ class Iterator
     if @layer.contentOverlapsActiveRegion(@position, next.value)
       @regionMapIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
-      @regionMapIterator.splice(extent, {extent, content: next.value})
+      @regionMapIterator.splice(extent, next.value)
 
     @position = nextPosition
     next
@@ -72,4 +72,4 @@ class Iterator
 
   splice: (extent, content) ->
     @regionMapIterator.seek(@position)
-    @regionMapIterator.splice(extent, {content, extent: Point(0, content.length)})
+    @regionMapIterator.splice(extent, content)
