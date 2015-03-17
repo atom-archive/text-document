@@ -7,7 +7,7 @@ describe "TransformLayer", ->
   describe ".getLines()", ->
     it "returns the content as an array of lines", ->
       stringLayer = new StringLayer("\nabc\ndefg\n")
-      layer = new TransformLayer(new LinesTransform, stringLayer)
+      layer = new TransformLayer(stringLayer, new LinesTransform)
 
       expect(layer.getLines()).toEqual [
         "\n"
@@ -19,7 +19,7 @@ describe "TransformLayer", ->
   describe ".slice(start, end)", ->
     it "returns the content between the start and end points", ->
       stringLayer = new StringLayer("\nabc\ndefg\n")
-      layer = new TransformLayer(new LinesTransform, stringLayer)
+      layer = new TransformLayer(stringLayer, new LinesTransform)
 
       expect(layer.slice(Point(0, 0), Point(1, 0))).toBe "\n"
       expect(layer.slice(Point(1, 0), Point(2, 0))).toBe "abc\n"
@@ -27,7 +27,7 @@ describe "TransformLayer", ->
   describe "when the source layer's content changes", ->
     it "emits an event and returns content based on the new source content", ->
       stringLayer = new StringLayer("\nabc\ndefg\n")
-      layer = new TransformLayer(new LinesTransform, stringLayer)
+      layer = new TransformLayer(stringLayer, new LinesTransform)
 
       events = []
       layer.onDidChange (event) -> events.push(event)

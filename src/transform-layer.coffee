@@ -7,7 +7,7 @@ module.exports =
 class TransformLayer
   pendingChangeOldExtent: null
 
-  constructor: (@transform, @sourceLayer) ->
+  constructor: (@sourceLayer, @transform) ->
     @emitter = new Emitter
     @sourceLayer.onWillChange(@sourceLayerWillChange)
     @sourceLayer.onDidChange(@sourceLayerDidChange)

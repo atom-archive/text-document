@@ -8,7 +8,7 @@ describe "LinesTransform", ->
   layer = null
 
   beforeEach ->
-    layer = new TransformLayer(new LinesTransform, new StringLayer("\nabc\ndefg\n"))
+    layer = new TransformLayer(new StringLayer("\nabc\ndefg\n"), new LinesTransform)
 
   it "breaks the source text into lines", ->
     iterator = layer[Symbol.iterator]()
