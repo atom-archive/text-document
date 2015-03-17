@@ -1,7 +1,9 @@
 Point = require "../src/point"
 {EOF} = require "../src/symbols"
-SpyLayer = require "./spy-layer"
+StringLayer = require "../src/string-layer"
 BufferLayer = require "../src/buffer-layer"
+SpyLayer = require "./spy-layer"
+Random = require "random-seed"
 
 describe "BufferLayer", ->
   describe "::slice(start, end)", ->
@@ -82,3 +84,37 @@ describe "BufferLayer", ->
 
       expect(buffer.slice(Point(0, 0), Point(0, 6))).toBe "abcdef"
       expect(source.getRecordedReads()).toEqual ["abc"]
+
+  describe "randomized mutations", ->
+    [seed, random] = []
+
+    beforeEach ->
+      seed = Date.now()
+      # seed = 1426552034823
+      random = new Random(seed)
+
+    it "behaves as if it were reading and writing directly to the underlying layer", ->
+      oldContent = "abcdefghijklmnopqrstuvwxyz"
+      source = new StringLayer(oldContent)
+      buffer = new BufferLayer(source)
+      reference = new StringLayer(oldContent)
+
+      for i in [0..30] by 1
+        for j in [0..10] by 1
+          currentContent = buffer.slice()
+          newContentLength = random(20)
+          newContent = (oldContent[random(26)] for k in [0..newContentLength]).join("").toUpperCase()
+
+          startColumn = random(currentContent.length)
+          endColumn = random.intBetween(startColumn, currentContent.length)
+          start = Point(0, startColumn)
+          extent = Point(0, endColumn - startColumn)
+
+          # console.log buffer.slice()
+          # console.log buffer.splice(#{start}, #{extent}, #{newContent})
+
+          reference.splice(start, extent, newContent)
+          buffer.splice(start, extent, newContent)
+
+          expect(buffer.slice()).toBe(reference.slice(), "Seed: #{seed}, Iteration: #{j}")
+          return unless buffer.slice() is reference.slice()

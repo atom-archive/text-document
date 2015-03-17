@@ -38,34 +38,42 @@ class BufferLayer
 class Iterator
   constructor: (@layer, @sourceIterator, @regionMapIterator) ->
     @position = Point.zero()
+    @sourcePosition = Point.zero()
 
   next: ->
-    if @regionMapIterator.getPosition().compare(@position) <= 0
-      @regionMapIterator.seek(@position)
+    comparison = @regionMapIterator.getPosition().compare(@position)
+    if comparison <= 0
+      @regionMapIterator.seek(@position) if comparison < 0
       next = @regionMapIterator.next()
       if next.value?
         @position = @regionMapIterator.getPosition()
+        @sourcePosition = @regionMapIterator.getSourcePosition()
         return {value: next.value, done: next.done}
 
-    @sourceIterator.seek(@position)
+    @sourceIterator.seek(@sourcePosition)
     next = @sourceIterator.next()
+    nextSourcePosition = @sourceIterator.getPosition()
 
-    sourceOvershoot = @sourceIterator.getPosition().traversalFrom(@regionMapIterator.getPosition())
+    sourceOvershoot = @sourceIterator.getPosition().traversalFrom(@regionMapIterator.getSourcePosition())
     if sourceOvershoot.compare(Point.zero()) > 0
       next.value = next.value.substring(0, next.value.length - sourceOvershoot.column)
       nextPosition = @regionMapIterator.getPosition()
     else
-      nextPosition = @sourceIterator.getPosition()
+      nextPosition = @position.traverse(nextSourcePosition.traversalFrom(@sourcePosition))
 
     if @layer.contentOverlapsActiveRegion(@position, next.value)
       @regionMapIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
       @regionMapIterator.splice(extent, next.value)
 
+    @sourcePosition = nextSourcePosition
     @position = nextPosition
     next
 
   seek: (@position) ->
+    @regionMapIterator.seek(@position)
+    @sourcePosition = @regionMapIterator.getSourcePosition()
+    @sourceIterator.seek(@sourcePosition)
 
   getPosition: ->
     @position

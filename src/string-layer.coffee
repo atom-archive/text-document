@@ -10,6 +10,16 @@ class StringLayer
   @::[Symbol.iterator] = ->
     new Iterator(this)
 
+  slice: (start = Point.zero(), end = Point.infinity()) ->
+    text = ""
+    iterator = @[Symbol.iterator]()
+    iterator.seek(start)
+    until text.length >= end.column
+      {value, done} = iterator.next()
+      break if done
+      text += value
+    text.slice(0, end.column)
+
   splice: (position, oldExtent, content) ->
     @assertValidPosition(position)
     @assertValidPosition(position.traverse(oldExtent))
@@ -35,14 +45,17 @@ class StringLayer
 
 class Iterator
   constructor: (@layer) ->
-    @seek(0)
+    @seek(Point.zero())
 
   next: ->
-    result = if @position >= @layer.content.length
+    result = if @position.column >= @layer.content.length
       {value: EOF, done: true}
     else
-      {value: @layer.content.slice(@position.column), done: false}
-    @position = @layer.content.length
+      {value: @layer.content.substring(@position.column), done: false}
+    @position = Point(0, @layer.content.length)
     result
 
   seek: (@position) ->
+
+  getPosition: ->
+    @position
