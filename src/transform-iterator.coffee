@@ -1,4 +1,4 @@
-{EOF, Newline} = require "./symbols"
+{EOF, Newline, Character} = require "./symbols"
 Point = require "./point"
 
 module.exports =
@@ -88,7 +88,11 @@ class TransformBuffer
         @position.column = 0
         @position.row++
       else
-        @position.column += output.length
+        if output instanceof Character
+          @position.column++
+          output = output.string
+        else
+          @position.column += output.length
 
     @outputs.push(
       content: output
