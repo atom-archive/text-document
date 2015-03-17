@@ -86,20 +86,17 @@ describe "BufferLayer", ->
       expect(source.getRecordedReads()).toEqual ["abc"]
 
   describe "randomized mutations", ->
-    [seed, random] = []
-
-    beforeEach ->
-      seed = Date.now()
-      # seed = 1426552034823
-      random = new Random(seed)
-
     it "behaves as if it were reading and writing directly to the underlying layer", ->
-      oldContent = "abcdefghijklmnopqrstuvwxyz"
-      source = new StringLayer(oldContent)
-      buffer = new BufferLayer(source)
-      reference = new StringLayer(oldContent)
-
       for i in [0..30] by 1
+        seed = Date.now()
+        # seed = 1426552034823
+        random = new Random(seed)
+
+        oldContent = "abcdefghijklmnopqrstuvwxyz"
+        source = new StringLayer(oldContent)
+        buffer = new BufferLayer(source)
+        reference = new StringLayer(oldContent)
+
         for j in [0..10] by 1
           currentContent = buffer.slice()
           newContentLength = random(20)
@@ -111,7 +108,7 @@ describe "BufferLayer", ->
           extent = Point(0, endColumn - startColumn)
 
           # console.log buffer.slice()
-          # console.log buffer.splice(#{start}, #{extent}, #{newContent})
+          # console.log "buffer.splice(#{start}, #{extent}, #{newContent})"
 
           reference.splice(start, extent, newContent)
           buffer.splice(start, extent, newContent)
