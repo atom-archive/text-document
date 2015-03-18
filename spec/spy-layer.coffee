@@ -1,7 +1,8 @@
+Layer = require "../src/layer"
 Point = require "../src/point"
 
 module.exports =
-class SpyLayer
+class SpyLayer extends Layer
   constructor: (@text, @chunkSize) ->
     @reset()
 

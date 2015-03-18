@@ -1,27 +1,13 @@
 Point = require "./point"
+Layer = require "./layer"
 RegionMap = require "./region-map"
 
 module.exports =
-class BufferLayer
+class BufferLayer extends Layer
   constructor: (@source) ->
     @bufferedContent = new RegionMap
     @activeRegionStart = null
     @activeRegionEnd = null
-
-  slice: (start = Point.zero(), end = Point.infinity()) ->
-    text = ""
-    iterator = @[Symbol.iterator]()
-    iterator.seek(start)
-    until text.length >= end.column
-      {value, done} = iterator.next()
-      break if done
-      text += value
-    text.slice(0, end.column)
-
-  splice: (start, extent, content) ->
-    iterator = @[Symbol.iterator]()
-    iterator.seek(start)
-    iterator.splice(extent, content)
 
   @::[Symbol.iterator] = ->
     new Iterator(this, @source[Symbol.iterator](), @bufferedContent[Symbol.iterator]())

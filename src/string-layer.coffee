@@ -1,46 +1,13 @@
-{Emitter} = require "event-kit"
 Point = require "./point"
+Layer = require "./layer"
 
 module.exports =
-class StringLayer
+class StringLayer extends Layer
   constructor: (@content) ->
-    @emitter = new Emitter
+    super
 
   @::[Symbol.iterator] = ->
     new Iterator(this)
-
-  slice: (start = Point.zero(), end = Point.infinity()) ->
-    text = ""
-    iterator = @[Symbol.iterator]()
-    iterator.seek(start)
-    until text.length >= end.column
-      {value, done} = iterator.next()
-      break if done
-      text += value
-    text.slice(0, end.column)
-
-  splice: (position, oldExtent, content) ->
-    @assertValidPosition(position)
-    @assertValidPosition(position.traverse(oldExtent))
-
-    @emitter.emit("will-change", {position, oldExtent})
-
-    @content =
-      @content.substring(0, position.column) +
-      content +
-      @content.substring(position.column + oldExtent.column)
-
-    @emitter.emit("did-change", {position, oldExtent, newExtent: Point(0, content.length)})
-
-  onWillChange: (fn) ->
-    @emitter.on("will-change", fn)
-
-  onDidChange: (fn) ->
-    @emitter.on("did-change", fn)
-
-  assertValidPosition: (position) ->
-    unless position.row is 0 and 0 <= position.column <= @content.length
-      throw new Error("Invalid position #{position}")
 
 class Iterator
   constructor: (@layer) ->
@@ -55,6 +22,23 @@ class Iterator
     result
 
   seek: (@position) ->
+    @assertValidPosition(@position)
 
   getPosition: ->
     @position
+
+  splice: (oldExtent, content) ->
+    @assertValidPosition(@position.traverse(oldExtent))
+
+    @layer.emitter.emit("will-change", {@position, oldExtent})
+
+    @layer.content =
+      @layer.content.substring(0, @position.column) +
+      content +
+      @layer.content.substring(@position.column + oldExtent.column)
+
+    @layer.emitter.emit("did-change", {@position, oldExtent, newExtent: Point(0, content.length)})
+
+  assertValidPosition: (position) ->
+    unless position.row is 0 and 0 <= position.column <= @layer.content.length
+      throw new Error("Invalid position #{position}")

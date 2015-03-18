@@ -10,12 +10,12 @@ describe "BufferLayer", ->
       source = new SpyLayer("abcdefghijkl", 3)
       buffer = new BufferLayer(source)
 
-      expect(buffer.slice(Point(0, 1), Point(0, 3))).toBe "bcd"
+      expect(buffer.slice(Point(0, 1), Point(0, 3))).toBe "bc"
       expect(source.getRecordedReads()).toEqual ["bcd"]
       source.reset()
 
-      expect(buffer.slice(Point(0, 2), Point(0, 4))).toBe "cdef"
-      expect(source.getRecordedReads()).toEqual ["cde", "fgh"]
+      expect(buffer.slice(Point(0, 2), Point(0, 4))).toBe "cd"
+      expect(source.getRecordedReads()).toEqual ["cde"]
 
     it "returns the entire input text when no bounds are given", ->
       source = new SpyLayer("abcdefghijkl", 3)
