@@ -2,7 +2,7 @@ module.exports =
 class LinesTransform
   operate: ({read, consume, produceCharacters, produceNewline}) ->
     if input = read()
-      switch (i = input.indexOf("\n", i))
+      switch (i = input.indexOf("\n"))
         when -1
           consume(input.length)
           produceCharacters(input)

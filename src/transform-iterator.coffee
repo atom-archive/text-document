@@ -99,3 +99,6 @@ class TransformBuffer
       position: @position.copy()
       sourcePosition: @sourcePosition.copy()
     )
+
+  getPosition: =>
+    @position
