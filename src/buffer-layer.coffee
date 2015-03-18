@@ -61,7 +61,7 @@ class Iterator
     else
       nextPosition = @position.traverse(nextSourcePosition.traversalFrom(@sourcePosition))
 
-    if @layer.contentOverlapsActiveRegion(@position, next.value)
+    if next.value? and @layer.contentOverlapsActiveRegion(@position, next.value)
       @regionMapIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
       @regionMapIterator.splice(extent, next.value)

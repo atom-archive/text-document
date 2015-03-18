@@ -22,6 +22,8 @@ describe "TransformLayer", ->
       layer = new TransformLayer(stringLayer, new LinesTransform)
 
       expect(layer.slice(Point(0, 0), Point(1, 0))).toBe "\n"
+      expect(layer.slice(Point(0, 0), Point(1, 1))).toBe "\na"
+      expect(layer.slice(Point(1, 1), Point(2, 1))).toBe "bc\nd"
       expect(layer.slice(Point(1, 0), Point(2, 0))).toBe "abc\n"
 
   describe "when the source layer's content changes", ->

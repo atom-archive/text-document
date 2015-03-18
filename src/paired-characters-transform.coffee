@@ -1,25 +1,18 @@
-{EOF, Character} = require "./symbols"
-
 module.exports =
 class PairedCharactersTransform
-  operate: ({read, consume, produce}) ->
-    input = read()
+  operate: ({read, consume, produceCharacters, produceCharacter}) ->
+    if input = read()
+      for i in [0...input.length - 1] by 1
+        if isPairedCharacter(input.charCodeAt(i), input.charCodeAt(i + 1))
+          consume(i)
+          produceCharacters(input.substring(0, i))
 
-    if input is EOF
-      produce(EOF)
-      return
+          consume(2)
+          produceCharacter(input.substring(i, i + 2))
+          return
 
-    for i in [0...input.length - 1] by 1
-      if isPairedCharacter(input.charCodeAt(i), input.charCodeAt(i + 1))
-        consume(i)
-        produce(input.substring(0, i))
-
-        consume(2)
-        produce(new Character(input.substring(i, i + 2)))
-        return
-
-    consume(input.length)
-    produce(input)
+      consume(input.length)
+      produceCharacters(input)
 
 # Is the character at the given index the start of high/low surrogate pair
 # a variation sequence, or a combined character?

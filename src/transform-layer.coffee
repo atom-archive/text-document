@@ -1,5 +1,4 @@
 {Emitter} = require "event-kit"
-{Newline} = require "./symbols"
 Point = require "./point"
 TransformIterator = require "./transform-iterator"
 
@@ -19,11 +18,10 @@ class TransformLayer
     loop
       {value, done} = iterator.next()
       break if done
-      if value is Newline
+      currentLine += value
+      if iterator.getPosition().column is 0
         result.push(currentLine)
         currentLine = ""
-      else
-        currentLine += value
     result.push(currentLine)
     result
 
@@ -31,17 +29,18 @@ class TransformLayer
     result = ""
     iterator = @[Symbol.iterator]()
 
+    lastPosition = start
     iterator.seek(start)
+
     loop
       {value, done} = iterator.next()
       break if done
-      continue if value is Newline
       if iterator.getPosition().compare(end) <= 0
         result += value
       else
-        overshoot = iterator.getPosition().column - end.column
-        result += value.slice(0, value.length - overshoot)
+        result += value.slice(0, end.traversalFrom(lastPosition).column)
         break
+      lastPosition = iterator.getPosition()
     result
 
   @::[Symbol.iterator] = ->

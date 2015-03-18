@@ -1,4 +1,3 @@
-{EOF, Newline, Character} = require "./symbols"
 Point = require "./point"
 
 module.exports =
@@ -9,11 +8,11 @@ class TransformIterator
     @transformBuffer = new TransformBuffer(@layer.transform, sourceIterator)
 
   next: ->
-    {@position, @sourcePosition, content} = @transformBuffer.next()
-    if content is EOF
-      {done: true}
+    if next = @transformBuffer.next()
+      {@position, @sourcePosition, content} = next
+      {value: content, done: false}
     else
-      {done: false, value: content}
+      {value: undefined, done: true}
 
   seek: (position) ->
     @position = Point.zero()
@@ -80,20 +79,21 @@ class TransformBuffer
     @sourcePosition.column += count
     @currentSourceOutput = @currentSourceOutput.substring(count)
 
-  produce: (output) =>
-    switch output
-      when EOF
-        null
-      when Newline
-        @position.column = 0
-        @position.row++
-      else
-        if output instanceof Character
-          @position.column++
-          output = output.string
-        else
-          @position.column += output.length
+  produceNewline: =>
+    @position.column = 0
+    @position.row++
+    @outputs[@outputs.length - 1].position = @position.copy()
 
+  produceCharacter: (output) =>
+    @position.column++
+    @outputs.push(
+      content: output
+      position: @position.copy()
+      sourcePosition: @sourcePosition.copy()
+    )
+
+  produceCharacters: (output) =>
+    @position.column += output.length
     @outputs.push(
       content: output
       position: @position.copy()

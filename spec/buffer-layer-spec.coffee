@@ -1,5 +1,4 @@
 Point = require "../src/point"
-{EOF} = require "../src/symbols"
 StringLayer = require "../src/string-layer"
 BufferLayer = require "../src/buffer-layer"
 SpyLayer = require "./spy-layer"
@@ -23,7 +22,7 @@ describe "BufferLayer", ->
       buffer = new BufferLayer(source)
 
       expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
 
   describe "::splice(start, extent, content)", ->
     it "replaces the extent at the given position with the given content", ->
@@ -50,10 +49,10 @@ describe "BufferLayer", ->
       expect(iterator.next()).toEqual(value:"jkl", done: false)
       expect(iterator.getPosition()).toEqual(Point(0, 12))
 
-      expect(iterator.next()).toEqual(value: EOF, done: true)
+      expect(iterator.next()).toEqual(value: undefined, done: true)
       expect(iterator.getPosition()).toEqual(Point(0, 12))
 
-      expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", EOF]
+      expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", undefined]
       source.reset()
 
       iterator.seek(Point(0, 5))
@@ -65,21 +64,21 @@ describe "BufferLayer", ->
       buffer = new BufferLayer(source)
 
       expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
       source.reset()
 
       expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
       source.reset()
 
       buffer.setActiveRegion(Point(0, 4), Point(0, 7))
 
       expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", EOF]
+      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
       source.reset()
 
       expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "jkl", EOF]
+      expect(source.getRecordedReads()).toEqual ["abc", "jkl", undefined]
       source.reset()
 
       expect(buffer.slice(Point(0, 0), Point(0, 6))).toBe "abcdef"

@@ -1,5 +1,4 @@
 {Emitter} = require "event-kit"
-{EOF} = require "./symbols"
 Point = require "./point"
 
 module.exports =
@@ -49,7 +48,7 @@ class Iterator
 
   next: ->
     result = if @position.column >= @layer.content.length
-      {value: EOF, done: true}
+      {value: undefined, done: true}
     else
       {value: @layer.content.substring(@position.column), done: false}
     @position = Point(0, @layer.content.length)

@@ -1,5 +1,4 @@
 Point = require "../src/point"
-{Newline} = require "../src/symbols"
 PairedCharactersTransform = require "../src/paired-characters-transform"
 StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
