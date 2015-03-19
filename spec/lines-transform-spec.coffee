@@ -23,7 +23,7 @@ describe "LinesTransform", ->
     expect(iterator.getPosition()).toEqual(Point(3, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
-    expect(iterator.next()).toEqual(done: true)
-    expect(iterator.next()).toEqual(done: true)
+    expect(iterator.next()).toEqual {value: undefined, done: true}
+    expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.getPosition()).toEqual(Point(3, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))

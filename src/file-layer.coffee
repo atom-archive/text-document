@@ -29,9 +29,9 @@ class Iterator
     if chunk = @store.getChunk(@bytePosition)
       @position.column += chunk.length
       @bytePosition += Buffer.byteLength(chunk)
-      {done: false, value: chunk}
+      {value: chunk, done: false}
     else
-      {done: true}
+      {value: undefined, done: true}
 
   seek: (position) ->
     if @position.column > position.column

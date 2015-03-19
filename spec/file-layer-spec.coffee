@@ -31,8 +31,8 @@ describe "FileLayer", ->
         expect(iterator.next()).toEqual(value: "\u03B4", done: false)
         expect(iterator.getPosition()).toEqual Point(0, 7)
 
-        expect(iterator.next()).toEqual(done: true)
-        expect(iterator.next()).toEqual(done: true)
+        expect(iterator.next()).toEqual {value: undefined, done: true}
+        expect(iterator.next()).toEqual {value: undefined, done: true}
         expect(iterator.getPosition()).toEqual Point(0, 7)
 
     describe "::seek(characterIndex)", ->
@@ -48,5 +48,5 @@ describe "FileLayer", ->
         expect(iterator.next()).toEqual(value: "-\u03B4", done: false)
         expect(iterator.getPosition()).toEqual Point(0, 7)
 
-        expect(iterator.next()).toEqual(done: true)
+        expect(iterator.next()).toEqual {value: undefined, done: true}
         expect(iterator.getPosition()).toEqual Point(0, 7)

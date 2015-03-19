@@ -35,6 +35,6 @@ describe "PairedCharactersTransform", ->
     expect(iterator.getPosition()).toEqual(Point(0, 5))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-    expect(iterator.next()).toEqual(done: true)
+    expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.getPosition()).toEqual(Point(0, 5))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
