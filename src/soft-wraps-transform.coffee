@@ -4,21 +4,19 @@ module.exports =
 class SoftWrapsTransform
   constructor: (@maxColumn) ->
 
-  operate: ({read, consume, produceCharacters, produceNewline, getPosition}) ->
+  operate: ({read, consume, passThrough, produceCharacters, produceNewline, getPosition}) ->
     {column} = getPosition()
     startColumn = column
     lastWhitespaceColumn = null
     output = ""
 
-    while input = read()
+    while (input = read())?
       lastOutputLength = output.length
       output += input
 
       for i in [0...input.length] by 1
         if input[i] is "\n"
-          output = output.substring(0, lastOutputLength + i + 1)
-          consume(output.length)
-          produceCharacters(output)
+          passThrough(lastOutputLength + i + 1)
           return
 
         if WhitespaceRegExp.test(input[i])
@@ -37,5 +35,4 @@ class SoftWrapsTransform
         column++
 
     if output.length > 0
-      consume(output.length)
-      produceCharacters(output)
+      passThrough(output.length)

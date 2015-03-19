@@ -47,4 +47,4 @@ class Iterator
         break
 
   getPosition: ->
-    @position
+    @position.copy()

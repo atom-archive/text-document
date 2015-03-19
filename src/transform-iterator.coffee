@@ -52,10 +52,10 @@ class TransformIterator
     @sourcePosition = position
 
   getPosition: ->
-    @position
+    @position.copy()
 
   getSourcePosition: ->
-    @sourcePosition
+    @sourcePosition.copy()
 
 class TransformBuffer
   constructor: (@transform, @sourceIterator) ->
@@ -81,21 +81,30 @@ class TransformBuffer
       content = @sourceIterator.next().value
       @inputs.push(
         content: content
-        sourcePosition: @sourceIterator.getPosition().copy()
+        sourcePosition: @sourceIterator.getPosition()
       )
     @inputIndex++
     content
 
   consume: (count) =>
+    consumedContent = ""
     while count > 0
-      if count > @inputs[0].content.length
+      if count >= @inputs[0].content.length
         {content, @sourcePosition} = @inputs.shift()
+        consumedContent += content
         count -= content.length
         @inputIndex--
       else
+        consumedContent += @inputs[0].content.substring(0, count)
         @inputs[0].content = @inputs[0].content.substring(count)
         @sourcePosition.column += count
         count = 0
+    consumedContent
+
+  passThrough: (count) =>
+    startSourcePosition = @sourcePosition.copy()
+    content = @consume(count)
+    @produceCharacters(content, @sourcePosition.traversalFrom(startSourcePosition))
 
   produceNewline: =>
     @position.column = 0
@@ -110,8 +119,8 @@ class TransformBuffer
       sourcePosition: @sourcePosition.copy()
     )
 
-  produceCharacters: (output) =>
-    @position.column += output.length
+  produceCharacters: (output, traversal = Point(0, output.length)) =>
+    @position = @position.traverse(traversal)
     @outputs.push(
       content: output
       position: @position.copy()
@@ -119,4 +128,4 @@ class TransformBuffer
     )
 
   getPosition: =>
-    @position
+    @position.copy()

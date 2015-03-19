@@ -5,6 +5,7 @@ RegionMap = require "./region-map"
 module.exports =
 class BufferLayer extends Layer
   constructor: (@source) ->
+    super
     @bufferedContent = new RegionMap
     @activeRegionStart = null
     @activeRegionEnd = null
@@ -62,7 +63,7 @@ class Iterator
     @sourceIterator.seek(@sourcePosition)
 
   getPosition: ->
-    @position
+    @position.copy()
 
   splice: (extent, content) ->
     @regionMapIterator.seek(@position)

@@ -25,7 +25,7 @@ class Iterator
     @assertValidPosition(@position)
 
   getPosition: ->
-    @position
+    @position.copy()
 
   splice: (oldExtent, content) ->
     @assertValidPosition(@position.traverse(oldExtent))

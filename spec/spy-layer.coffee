@@ -22,7 +22,7 @@ class Iterator
 
   next: ->
     if value = @layer.text.substr(@position.column, @layer.chunkSize)
-      @position.column += @layer.chunkSize
+      @position.column += value.length
       done = false
     else
       value = undefined
@@ -34,4 +34,4 @@ class Iterator
     @position = position.copy()
 
   getPosition: ->
-    @position
+    @position.copy()
