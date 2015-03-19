@@ -4,6 +4,7 @@ Point = require "../src/point"
 module.exports =
 class SpyLayer extends Layer
   constructor: (@text, @chunkSize) ->
+    super
     @reset()
 
   @::[Symbol.iterator] = ->

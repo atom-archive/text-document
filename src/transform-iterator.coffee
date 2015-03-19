@@ -62,22 +62,40 @@ class TransformBuffer
     @reset(Point.zero(), Point.zero())
 
   next: ->
+    @inputIndex = 0
     @transform.operate(this) unless @outputs.length > 0
     @outputs.shift()
 
   reset: (position, sourcePosition) ->
-    @position = position
-    @sourcePosition = sourcePosition
+    @position = position.copy()
+    @sourcePosition = sourcePosition.copy()
     @outputs = []
-    @currentSourceOutput = null
+    @inputs = []
+    @inputIndex = 0
     @sourceIterator.seek(sourcePosition)
 
   read: =>
-    @currentSourceOutput or= @sourceIterator.next().value
+    if input = @inputs[@inputIndex]
+      content = input.content
+    else
+      content = @sourceIterator.next().value
+      @inputs.push(
+        content: content
+        sourcePosition: @sourceIterator.getPosition().copy()
+      )
+    @inputIndex++
+    content
 
   consume: (count) =>
-    @sourcePosition.column += count
-    @currentSourceOutput = @currentSourceOutput.substring(count)
+    while count > 0
+      if count > @inputs[0].content.length
+        {content, @sourcePosition} = @inputs.shift()
+        count -= content.length
+        @inputIndex--
+      else
+        @inputs[0].content = @inputs[0].content.substring(count)
+        @sourcePosition.column += count
+        count = 0
 
   produceNewline: =>
     @position.column = 0

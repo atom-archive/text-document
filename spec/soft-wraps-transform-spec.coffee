@@ -5,7 +5,7 @@ SpyLayer = require "./spy-layer"
 TransformLayer = require "../src/transform-layer"
 
 describe "SoftWrapsTransform", ->
-  it "breaks each line at the last word boundary before the per-line character limit", ->
+  it "inserts a line-break at the end of the last whitespace sequence that starts before the max column", ->
     layer = new TransformLayer(
       new StringLayer("abc def ghi jklmno\tpqr"),
       new SoftWrapsTransform(10)
@@ -36,7 +36,7 @@ describe "SoftWrapsTransform", ->
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 8))
 
-  it "breaks each line at the last word boundary before the per-line character limit", ->
+  it "breaks lines within words if there is no whitespace starting before the max column", ->
     layer = new TransformLayer(
       new StringLayer("abcdefghijkl"),
       new SoftWrapsTransform(5)
@@ -59,3 +59,18 @@ describe "SoftWrapsTransform", ->
     expect(iterator.next()).toEqual(done: true)
     expect(iterator.getPosition()).toEqual(Point(2, 2))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 12))
+
+  it "reads from the source layer until it reads a newline or it exceeds the max column", ->
+    layer = new TransformLayer(
+      new SpyLayer("abc defghijkl", 5),
+      new SoftWrapsTransform(10)
+    )
+
+    iterator = layer[Symbol.iterator]()
+    expect(iterator.next()).toEqual(value: "abc ", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 4))
+
+    expect(iterator.next()).toEqual(value: "defghijkl", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 9))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 13))
