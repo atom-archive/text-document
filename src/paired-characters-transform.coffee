@@ -1,18 +1,15 @@
 module.exports =
 class PairedCharactersTransform
-  operate: ({read, consume, produceCharacters, produceCharacter}) ->
+  operate: ({read, consume, passThrough, produceCharacter}) ->
     if input = read()
       for i in [0...input.length - 1] by 1
         if isPairedCharacter(input.charCodeAt(i), input.charCodeAt(i + 1))
-          consume(i)
-          produceCharacters(input.substring(0, i))
-
+          passThrough(i)
           consume(2)
           produceCharacter(input.substring(i, i + 2))
           return
 
-      consume(input.length)
-      produceCharacters(input)
+      passThrough(input.length)
 
 # Is the character at the given index the start of high/low surrogate pair
 # a variation sequence, or a combined character?

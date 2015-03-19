@@ -27,8 +27,7 @@ class SoftWrapsTransform
           else
             output = output.substring(0, lastOutputLength + i)
 
-          consume(output.length)
-          produceCharacters(output)
+          passThrough(output.length)
           produceNewline()
           return
 

@@ -1,16 +1,13 @@
 module.exports =
 class LinesTransform
-  operate: ({read, consume, produceCharacters, produceNewline}) ->
+  operate: ({read, consume, passThrough, produceNewline}) ->
     if input = read()
       switch (i = input.indexOf("\n"))
         when -1
-          consume(input.length)
-          produceCharacters(input)
+          passThrough(input.length)
         when 0
-          consume(1)
-          produceCharacters("\n")
+          passThrough(1)
           produceNewline()
         else
-          consume(i + 1)
-          produceCharacters(input.slice(0, i + 1))
+          passThrough(i + 1)
           produceNewline()
