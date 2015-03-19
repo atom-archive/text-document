@@ -3,7 +3,6 @@ class HardTabsTransform
   constructor: (@tabLength) ->
 
   operate: ({read, consume, passThrough, produceCharacters, getPosition}) ->
-    debugger if global.debug
     if (input = read())?
       switch (i = input.indexOf("\t"))
         when -1
