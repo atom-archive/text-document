@@ -49,24 +49,3 @@ describe "TransformLayer", ->
         oldExtent: Point(0, 1)
         newExtent: Point(1, 2)
       }])
-
-  describe "position translation", ->
-    it "translates positions back and forth between layers", ->
-      stringLayer = new StringLayer("abc\nhello\nbye")
-      linesLayer = new TransformLayer(stringLayer, new LinesTransform)
-
-      positions = [
-        [Point(0, 0), Point(0, 0)]
-        [Point(0, 1), Point(0, 1)]
-        [Point(1, 0), Point(0, 4)]
-        [Point(2, 0), Point(0, 10)]
-      ]
-
-      for [currentLayerPosition, upperLayerPosition] in positions
-        expect(
-          linesLayer.positionInUpperLayer(currentLayerPosition)
-        ).toEqual(upperLayerPosition)
-
-        expect(
-          linesLayer.positionFromUpperLayer(upperLayerPosition)
-        ).toEqual(currentLayerPosition)
