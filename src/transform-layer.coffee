@@ -36,9 +36,14 @@ class TransformLayer extends Layer
   positionInUpperLayer: (position) ->
     iterator = @[Symbol.iterator]()
     iterator.seek(position)
-    iterator.getSourcePosition()
 
-  positionFromUpperLayer: (position) ->
+    @sourceLayer.positionInUpperLayer(
+      iterator.getSourcePosition()
+    )
+
+  positionFromUpperLayer: (sourcePosition) ->
+    sourcePosition = @sourceLayer.positionFromUpperLayer(sourcePosition)
+
     iterator = @[Symbol.iterator]()
-    iterator.seekToSourcePosition(position)
+    iterator.seekToSourcePosition(sourcePosition)
     iterator.getPosition()
