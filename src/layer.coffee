@@ -55,5 +55,5 @@ class Layer
     iterator.seek(start)
     iterator.splice(extent, content)
 
-  positionInUpperLayer: (position) -> position
-  positionFromUpperLayer: (position) -> position
+  positionInTopmostLayer: (position) -> position
+  positionFromTopmostLayer: (position) -> position
