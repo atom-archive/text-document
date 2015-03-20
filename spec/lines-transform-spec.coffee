@@ -29,19 +29,10 @@ describe "LinesTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
   it "correctly translates positions", ->
-    positions = [
+    expectMappings(layer, [
       [Point(0, 0), Point(0, 0)]
       [Point(1, 0), Point(0, 1)]
       [Point(2, 0), Point(0, 5)]
       [Point(2, 4), Point(0, 9)]
       [Point(3, 0), Point(0, 10)]
-    ]
-
-    for [currentLayerPosition, upperLayerPosition] in positions
-      expect(
-        layer.positionInUpperLayer(currentLayerPosition)
-      ).toEqual(upperLayerPosition)
-
-      expect(
-        layer.positionFromUpperLayer(upperLayerPosition)
-      ).toEqual(currentLayerPosition)
+    ])
