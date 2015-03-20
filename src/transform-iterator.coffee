@@ -45,11 +45,13 @@ class TransformIterator
       {done} = @next()
       break if done
 
-    overshoot = position.column - lastSourcePosition.column
-    lastPosition.column += overshoot
+    unless @sourcePosition.compare(position) is 0
+      overshoot = position.column - lastSourcePosition.column
+      lastPosition.column += overshoot
+      @position = lastPosition
+      @sourcePosition = position
+
     @transformBuffer.reset(lastPosition, position)
-    @position = lastPosition
-    @sourcePosition = position
 
   getPosition: ->
     @position.copy()

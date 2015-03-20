@@ -32,3 +32,13 @@ class TransformLayer extends Layer
     @pendingChangeOldExtent = null
 
     @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}
+
+  positionInUpperLayer: (position) ->
+    iterator = @[Symbol.iterator]()
+    iterator.seek(position)
+    iterator.getSourcePosition()
+
+  positionFromUpperLayer: (position) ->
+    iterator = @[Symbol.iterator]()
+    iterator.seekToSourcePosition(position)
+    iterator.getPosition()
