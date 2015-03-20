@@ -76,12 +76,10 @@ describe "SoftWrapsTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 13))
 
   it "correctly translates positions", ->
-    layer = new TransformLayer(
-      new StringLayer("abc def ghi jklmno\tpqr"),
-      new SoftWrapsTransform(10)
-    )
+    stringLayer = new StringLayer("abc def ghi jklmno\tpqr")
+    layer = new TransformLayer(stringLayer, new SoftWrapsTransform(10))
 
-    expectMappings(layer, [
+    expectMappings(layer, stringLayer, [
       [Point(0, 0), Point(0, 0)]
       [Point(1, 0), Point(0, 8)]
       [Point(2, 0), Point(0, 19)]

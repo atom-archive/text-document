@@ -1,11 +1,11 @@
 require 'coffee-cache'
 
-exports.expectMappings = (layer, mappings) ->
+exports.expectMappings = (currentLayer, upperLayer, mappings) ->
   for [currentLayerPosition, upperLayerPosition] in mappings
     expect(
-      layer.positionInTopmostLayer(currentLayerPosition)
+      currentLayer.toPositionInLayer(currentLayerPosition, upperLayer)
     ).toEqual(upperLayerPosition)
 
     expect(
-      layer.positionFromTopmostLayer(upperLayerPosition)
+      currentLayer.fromPositionInLayer(upperLayerPosition, upperLayer)
     ).toEqual(currentLayerPosition)

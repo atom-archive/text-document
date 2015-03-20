@@ -4,13 +4,14 @@ StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
 
 describe "LinesTransform", ->
-  layer = null
+  [stringLayer, linesLayer] = []
 
   beforeEach ->
-    layer = new TransformLayer(new StringLayer("\nabc\ndefg\n"), new LinesTransform)
+    stringLayer = new StringLayer("\nabc\ndefg\n")
+    linesLayer = new TransformLayer(stringLayer, new LinesTransform)
 
   it "breaks the source text into lines", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = linesLayer[Symbol.iterator]()
     expect(iterator.next()).toEqual(value: "\n", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 1))
@@ -29,7 +30,7 @@ describe "LinesTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
   it "correctly translates positions", ->
-    expectMappings(layer, [
+    expectMappings(linesLayer, stringLayer, [
       [Point(0, 0), Point(0, 0)]
       [Point(1, 0), Point(0, 1)]
       [Point(2, 0), Point(0, 5)]

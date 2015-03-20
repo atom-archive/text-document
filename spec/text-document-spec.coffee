@@ -28,7 +28,7 @@ describe "TextDocument", ->
         ]
 
     it "maps positions correctly across multiple layers", ->
-      expectMappings(layer, [
+      expectMappings(layer, document.bufferLayer, [
         [Point(0, 0), Point(0, 0)]
         [Point(1, 0), Point(0, 5)]
         [Point(2, 0), Point(0, 9)]
