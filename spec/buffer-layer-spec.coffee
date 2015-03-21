@@ -37,7 +37,7 @@ describe "BufferLayer", ->
     it "returns an iterator into the buffer", ->
       source = new SpyLayer("abcdefghijkl", 3)
       buffer = new BufferLayer(source)
-      iterator = buffer[Symbol.iterator]()
+      iterator = buffer.buildIterator()
       iterator.seek(Point(0, 3))
 
       expect(iterator.next()).toEqual(value:"def", done: false)

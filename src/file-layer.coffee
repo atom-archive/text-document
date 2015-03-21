@@ -10,7 +10,7 @@ class FileLayer
   destroy: ->
     fs.close(@fd)
 
-  @::[Symbol.iterator] = ->
+  buildIterator: ->
     new Iterator(this)
 
   getChunk: (byteOffset) ->

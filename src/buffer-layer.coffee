@@ -10,8 +10,8 @@ class BufferLayer extends Layer
     @activeRegionStart = null
     @activeRegionEnd = null
 
-  @::[Symbol.iterator] = ->
-    new Iterator(this, @source[Symbol.iterator](), @bufferedContent[Symbol.iterator]())
+  buildIterator: ->
+    new Iterator(this, @source.buildIterator(), @bufferedContent.buildIterator())
 
   setActiveRegion: (start, end) ->
     @activeRegionStart = start

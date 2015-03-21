@@ -11,18 +11,18 @@ class TransformLayer extends Layer
     @sourceLayer.onWillChange(@sourceLayerWillChange)
     @sourceLayer.onDidChange(@sourceLayerDidChange)
 
-  @::[Symbol.iterator] = ->
-    new TransformLayerIterator(this, @sourceLayer[Symbol.iterator]())
+  buildIterator: ->
+    new TransformLayerIterator(this, @sourceLayer.buildIterator())
 
   sourceLayerWillChange: ({position, oldExtent}) =>
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     iterator.seekToSourcePosition(position)
     startPosition = iterator.getPosition()
     iterator.seekToSourcePosition(position.traverse(oldExtent))
     @pendingChangeOldExtent = iterator.getPosition().traversalFrom(startPosition)
 
   sourceLayerDidChange: ({position, newExtent}) =>
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     iterator.seekToSourcePosition(position)
     startPosition = iterator.getPosition()
     iterator.seekToSourcePosition(position.traverse(newExtent))

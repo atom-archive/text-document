@@ -11,7 +11,7 @@ describe "SoftWrapsTransform", ->
       new SoftWrapsTransform(10)
     )
 
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
     expect(iterator.next()).toEqual(value: "abc def ", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 8))
@@ -42,7 +42,7 @@ describe "SoftWrapsTransform", ->
       new SoftWrapsTransform(5)
     )
 
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
     expect(iterator.next()).toEqual(value: "abcde", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
@@ -66,7 +66,7 @@ describe "SoftWrapsTransform", ->
       new SoftWrapsTransform(10)
     )
 
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
     expect(iterator.next()).toEqual(value: "abc ", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 4))

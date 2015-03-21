@@ -10,7 +10,7 @@ describe "LinesTransform", ->
     layer = new TransformLayer(new StringLayer("\nabc\ndefg\n"), new LinesTransform)
 
   it "breaks the source text into lines", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
     expect(iterator.next()).toEqual(value: "\n", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 1))

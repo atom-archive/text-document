@@ -13,7 +13,7 @@ class Layer
     @emitter.on("did-change", fn)
 
   getExtent: ->
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     loop
       break if iterator.next().done
     iterator.getPosition()
@@ -21,7 +21,7 @@ class Layer
   getLines: ->
     result = []
     currentLine = ""
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     loop
       {value, done} = iterator.next()
       break if done
@@ -34,7 +34,7 @@ class Layer
 
   slice: (start = Point.zero(), end = Point.infinity()) ->
     result = ""
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
 
     lastPosition = start
     iterator.seek(start)
@@ -51,6 +51,6 @@ class Layer
     result
 
   splice: (start, extent, content) ->
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     iterator.seek(start)
     iterator.splice(extent, content)

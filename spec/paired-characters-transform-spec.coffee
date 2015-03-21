@@ -13,7 +13,7 @@ describe "PairedCharactersTransform", ->
     )
 
   it "replaces paired characters with single characters", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
 
     expect(iterator.next()).toEqual(value: "a", done: false)
     expect(iterator.getPosition()).toEqual(Point(0, 1))

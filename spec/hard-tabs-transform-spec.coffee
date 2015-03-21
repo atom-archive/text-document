@@ -10,7 +10,7 @@ describe "HardTabsTransform", ->
     layer = new TransformLayer(new StringLayer("\tabc\tdefg\t"), new HardTabsTransform(4))
 
   it "expands hard tab characters to spaces based on the given tab length", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
     expect(iterator.next()).toEqual(value: "\t   ", done: false)
     expect(iterator.getPosition()).toEqual(Point(0, 4))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 1))

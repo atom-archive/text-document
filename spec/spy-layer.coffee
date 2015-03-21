@@ -7,7 +7,7 @@ class SpyLayer extends Layer
     super
     @reset()
 
-  @::[Symbol.iterator] = ->
+  buildIterator: ->
     new Iterator(this)
 
   reset: ->
