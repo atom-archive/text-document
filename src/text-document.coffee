@@ -30,3 +30,11 @@ class TextDocument
       (previousLayer, transform) -> new TransformLayer(previousLayer, transform)
       @getLinesLayer()
     )
+
+  characterIndexForPosition: (position) ->
+    @getLinesLayer().toPositionInLayer(position, @bufferLayer).column
+
+  positionForCharacterIndex: (charIndex) ->
+    position = new Point(0, charIndex)
+
+    @getLinesLayer().fromPositionInLayer(position, @bufferLayer)

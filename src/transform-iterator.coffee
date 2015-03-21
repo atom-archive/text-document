@@ -31,6 +31,7 @@ class TransformIterator
       lastSourcePosition.column += overshoot
       @position = position
       @sourcePosition = lastSourcePosition
+
     @transformBuffer.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (position) ->
