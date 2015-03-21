@@ -2,15 +2,15 @@ Point = require './point'
 
 module.exports =
 class PairedCharactersTransform
-  operate: ({read, transduce}) ->
+  operate: ({read, transform}) ->
     if input = read()
       for i in [0...input.length - 1] by 1
         if isPairedCharacter(input.charCodeAt(i), input.charCodeAt(i + 1))
-          transduce(i)
-          transduce(2, input.substring(i, i + 2), Point(0, 1))
+          transform(i)
+          transform(2, input.substring(i, i + 2), Point(0, 1))
           return
 
-      transduce(input.length)
+      transform(input.length)
 
 # Is the character at the given index the start of high/low surrogate pair
 # a variation sequence, or a combined character?

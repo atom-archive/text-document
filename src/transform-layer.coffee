@@ -2,8 +2,14 @@ Layer = require "./layer"
 Point = require "./point"
 OperatorIterator = require './operator-iterator'
 
+CLIP_FORWARD = Symbol('clip forward')
+CLIP_BACKWARD = Symbol('clip backward')
+
 module.exports =
 class TransformLayer extends Layer
+  clip:
+    forward: CLIP_FORWARD
+    backward: CLIP_BACKWARD
   pendingChangeOldExtent: null
 
   constructor: (@sourceLayer, @operator) ->
@@ -33,7 +39,19 @@ class TransformLayer extends Layer
 
     @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}
 
+  toSourcePosition: (position, clip) ->
+    iterator = @buildIterator()
+    iterator.seek(position, clip)
+    iterator.getSourcePosition()
+
+  fromSourcePosition: (sourcePosition, clip) ->
+    iterator = @buildIterator()
+    iterator.seekToSourcePosition(sourcePosition, clip)
+    iterator.getPosition()
+
 class TransformLayerIterator
+  clipping: undefined
+
   constructor: (@layer, sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
@@ -41,12 +59,12 @@ class TransformLayerIterator
 
   next: ->
     if next = @transformBuffer.next()
-      {@position, @sourcePosition, content} = next
+      {@position, @sourcePosition, content, @clipping} = next
       {value: content, done: false}
     else
       {value: undefined, done: true}
 
-  seek: (position) ->
+  seek: (position, clip=CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformBuffer.reset(@position, @sourcePosition)
@@ -57,6 +75,14 @@ class TransformLayerIterator
       lastSourcePosition = @sourcePosition
       {done} = @next()
       return if done
+
+    if @clipping? and @position.compare(position) > 0
+      switch clip
+        when CLIP_FORWARD
+          return
+        when CLIP_BACKWARD
+          @sourcePosition = lastSourcePosition
+          return
 
     unless @position.compare(position) is 0
       overshoot = position.column - lastPosition.column
@@ -76,6 +102,8 @@ class TransformLayerIterator
       lastSourcePosition = @sourcePosition
       {done} = @next()
       break if done
+
+    return if @clipping?
 
     overshoot = position.column - lastSourcePosition.column
     lastPosition.column += overshoot

@@ -2,16 +2,16 @@ module.exports =
 class HardTabsTransform
   constructor: (@tabLength) ->
 
-  operate: ({read, transduce, getPosition}) ->
+  operate: ({read, transform, getPosition, clipping}) ->
     if (input = read())?
       switch (i = input.indexOf("\t"))
         when -1
-          transduce(input.length)
+          transform(input.length)
         when 0
-          transduce(1, @tabStringForColumn(getPosition().column))
+          transform(1, @tabStringForColumn(getPosition().column), null, clipping.open)
         else
-          transduce(i)
-          transduce(1, @tabStringForColumn(getPosition().column))
+          transform(i)
+          transform(1, @tabStringForColumn(getPosition().column), null, clipping.open)
 
   tabStringForColumn: (column) ->
     length = @tabLength - (column % @tabLength)
