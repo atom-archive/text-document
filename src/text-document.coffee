@@ -11,8 +11,9 @@ module.exports =
 class TextDocument
   linesLayer: null
 
-  constructor: ->
-    @bufferLayer = new BufferLayer(new StringLayer(""))
+  constructor: (options) ->
+    @bufferLayer  = new BufferLayer(new StringLayer(""))
+    @displayLayer = @buildDisplayLayer(options)
 
   setText: (text) ->
     @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
@@ -32,33 +33,31 @@ class TextDocument
     )
 
   characterIndexForPosition: (position) ->
-    @sourcePositionInLayerForPosition(
-      position, @getLinesLayer(), @bufferLayer
+    @sourcePositionForPosition(
+      position, @displayLayer, @bufferLayer
     ).column
 
   positionForCharacterIndex: (charIndex) ->
     position = new Point(0, charIndex)
 
-    @positionInLayerForSourcePosition(
-      position, @getLinesLayer(), @bufferLayer
-    )
+    @positionForSourcePosition(position, @displayLayer, @bufferLayer)
 
-  sourcePositionInLayerForPosition: (position, currentLayer, targetLayer) ->
-    return position if currentLayer is targetLayer
+  sourcePositionForPosition: (position, currentLayer, sourceLayer) ->
+    return position if currentLayer is sourceLayer
 
-    @sourcePositionInLayerForPosition(
+    @sourcePositionForPosition(
       currentLayer.sourcePositionForPosition(position),
       currentLayer.sourceLayer,
-      targetLayer
+      sourceLayer
     )
 
-  positionInLayerForSourcePosition: (position, currentLayer, targetLayer) ->
-    return position if currentLayer is targetLayer
+  positionForSourcePosition: (position, currentLayer, sourceLayer) ->
+    return position if currentLayer is sourceLayer
 
-    position = @positionInLayerForSourcePosition(
+    position = @positionForSourcePosition(
       position,
       currentLayer.sourceLayer,
-      targetLayer
+      sourceLayer
     )
 
     currentLayer.positionForSourcePosition(position)
