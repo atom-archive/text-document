@@ -86,7 +86,18 @@ class TransformBuffer
     @inputIndex++
     content
 
-  consume: (count) =>
+  transduce: (consumedCount, producedContent, producedExtent) =>
+    if producedContent?
+      @consume(consumedCount)
+      producedExtent ?= Point(0, producedContent.length)
+      @produce(producedContent, producedExtent)
+    else
+      startSourcePosition = @sourcePosition.copy()
+      consumedContent = @consume(consumedCount)
+      consumedExtent = @sourcePosition.traversalFrom(startSourcePosition)
+      @produce(consumedContent, consumedExtent)
+
+  consume: (count) ->
     consumedContent = ""
     while count > 0
       if count >= @inputs[0].content.length
@@ -101,28 +112,10 @@ class TransformBuffer
         count = 0
     consumedContent
 
-  passThrough: (count) =>
-    startSourcePosition = @sourcePosition.copy()
-    content = @consume(count)
-    @produceCharacters(content, @sourcePosition.traversalFrom(startSourcePosition))
-
-  produceNewline: =>
-    @position.column = 0
-    @position.row++
-    @outputs[@outputs.length - 1].position = @position.copy()
-
-  produceCharacter: (output) =>
-    @position.column++
+  produce: (content, extent) ->
+    @position = @position.traverse(extent)
     @outputs.push(
-      content: output
-      position: @position.copy()
-      sourcePosition: @sourcePosition.copy()
-    )
-
-  produceCharacters: (output, traversal = Point(0, output.length)) =>
-    @position = @position.traverse(traversal)
-    @outputs.push(
-      content: output
+      content: content
       position: @position.copy()
       sourcePosition: @sourcePosition.copy()
     )

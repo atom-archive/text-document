@@ -1,13 +1,13 @@
+Point = require './point'
+
 module.exports =
 class LinesTransform
-  operate: ({read, consume, passThrough, produceNewline}) ->
+  operate: ({read, transduce}) ->
     if input = read()
       switch (i = input.indexOf("\n"))
         when -1
-          passThrough(input.length)
+          transduce(input.length)
         when 0
-          passThrough(1)
-          produceNewline()
+          transduce(1, "\n", Point(1, 0))
         else
-          passThrough(i + 1)
-          produceNewline()
+          transduce(i + 1, input.substring(0, i + 1), Point(1, 0))
