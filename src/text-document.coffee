@@ -42,22 +42,20 @@ class TextDocument
 
     @positionForSourcePosition(position, @displayLayer, @bufferLayer)
 
-  sourcePositionForPosition: (position, currentLayer, sourceLayer) ->
-    return position if currentLayer is sourceLayer
+  sourcePositionForPosition: (position, targetLayer, sourceLayer) ->
+    return position if targetLayer is sourceLayer
 
     @sourcePositionForPosition(
-      currentLayer.sourcePositionForPosition(position),
-      currentLayer.sourceLayer,
+      targetLayer.sourcePositionForPosition(position),
+      targetLayer.sourceLayer,
       sourceLayer
     )
 
-  positionForSourcePosition: (position, currentLayer, sourceLayer) ->
-    return position if currentLayer is sourceLayer
+  positionForSourcePosition: (position, targetLayer, sourceLayer) ->
+    return position if targetLayer is sourceLayer
 
     position = @positionForSourcePosition(
-      position,
-      currentLayer.sourceLayer,
-      sourceLayer
+      position, targetLayer.sourceLayer, sourceLayer
     )
 
-    currentLayer.positionForSourcePosition(position)
+    targetLayer.positionForSourcePosition(position)
