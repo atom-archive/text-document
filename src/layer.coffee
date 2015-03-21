@@ -54,3 +54,13 @@ class Layer
     iterator = @[Symbol.iterator]()
     iterator.seek(start)
     iterator.splice(extent, content)
+
+  sourcePositionForPosition: (position) ->
+    iterator = @[Symbol.iterator]()
+    iterator.seek(position)
+    iterator.getSourcePosition()
+
+  positionForSourcePosition: (position) ->
+    iterator = @[Symbol.iterator]()
+    iterator.seekToSourcePosition(position)
+    iterator.getPosition()

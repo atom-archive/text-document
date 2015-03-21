@@ -4,13 +4,14 @@ StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
 
 describe "HardTabsTransform", ->
-  layer = null
+  [stringLayer, hardTabsLayer] = []
 
   beforeEach ->
-    layer = new TransformLayer(new StringLayer("\tabc\tdefg\t"), new HardTabsTransform(4))
+    stringLayer = new StringLayer("\tabc\tdefg\t")
+    hardTabsLayer = new TransformLayer(stringLayer, new HardTabsTransform(4))
 
   it "expands hard tab characters to spaces based on the given tab length", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = hardTabsLayer[Symbol.iterator]()
     expect(iterator.next()).toEqual(value: "\t   ", done: false)
     expect(iterator.getPosition()).toEqual(Point(0, 4))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 1))
@@ -35,3 +36,12 @@ describe "HardTabsTransform", ->
     expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.getPosition()).toEqual(Point(0, 16))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
+
+  it "correctly translates positions", ->
+    expectMappings(hardTabsLayer, [
+      [Point(0, 0), Point(0, 0)]
+      [Point(0, 4), Point(0, 1)]
+      [Point(0, 5), Point(0, 2)]
+      [Point(0, 12), Point(0, 9)]
+      [Point(0, 16), Point(0, 10)]
+    ])

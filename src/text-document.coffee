@@ -11,8 +11,9 @@ module.exports =
 class TextDocument
   linesLayer: null
 
-  constructor: ->
-    @bufferLayer = new BufferLayer(new StringLayer(""))
+  constructor: (options) ->
+    @bufferLayer  = new BufferLayer(new StringLayer(""))
+    @displayLayer = @buildDisplayLayer(options)
 
   setText: (text) ->
     @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
@@ -30,3 +31,31 @@ class TextDocument
       (previousLayer, transform) -> new TransformLayer(previousLayer, transform)
       @getLinesLayer()
     )
+
+  characterIndexForPosition: (position) ->
+    @sourcePositionForPosition(
+      position, @displayLayer, @bufferLayer
+    ).column
+
+  positionForCharacterIndex: (charIndex) ->
+    position = new Point(0, charIndex)
+
+    @positionForSourcePosition(position, @displayLayer, @bufferLayer)
+
+  sourcePositionForPosition: (position, targetLayer, sourceLayer) ->
+    return position if targetLayer is sourceLayer
+
+    @sourcePositionForPosition(
+      targetLayer.sourcePositionForPosition(position),
+      targetLayer.sourceLayer,
+      sourceLayer
+    )
+
+  positionForSourcePosition: (position, targetLayer, sourceLayer) ->
+    return position if targetLayer is sourceLayer
+
+    position = @positionForSourcePosition(
+      position, targetLayer.sourceLayer, sourceLayer
+    )
+
+    targetLayer.positionForSourcePosition(position)
