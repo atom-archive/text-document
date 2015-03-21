@@ -79,7 +79,7 @@ describe "SoftWrapsTransform", ->
     stringLayer = new StringLayer("abc def ghi jklmno\tpqr")
     layer = new TransformLayer(stringLayer, new SoftWrapsTransform(10))
 
-    expectMappings(layer, stringLayer, [
+    expectMappings(layer, [
       [Point(0, 0), Point(0, 0)]
       [Point(1, 0), Point(0, 8)]
       [Point(2, 0), Point(0, 19)]

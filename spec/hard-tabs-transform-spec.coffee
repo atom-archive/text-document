@@ -38,7 +38,7 @@ describe "HardTabsTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
   it "correctly translates positions", ->
-    expectMappings(hardTabsLayer, stringLayer, [
+    expectMappings(hardTabsLayer, [
       [Point(0, 0), Point(0, 0)]
       [Point(0, 4), Point(0, 1)]
       [Point(0, 5), Point(0, 2)]

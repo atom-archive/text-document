@@ -30,7 +30,7 @@ describe "LinesTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
   it "correctly translates positions", ->
-    expectMappings(linesLayer, stringLayer, [
+    expectMappings(linesLayer, [
       [Point(0, 0), Point(0, 0)]
       [Point(1, 0), Point(0, 1)]
       [Point(2, 0), Point(0, 5)]

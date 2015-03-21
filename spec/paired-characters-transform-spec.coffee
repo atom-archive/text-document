@@ -41,7 +41,7 @@ describe "PairedCharactersTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
   it "correctly translates positions", ->
-    expectMappings(pairedCharactersLayer, stringLayer, [
+    expectMappings(pairedCharactersLayer, [
       [Point(0, 0), Point(0, 0)]
       [Point(0, 1), Point(0, 1)]
       [Point(0, 2), Point(0, 3)]

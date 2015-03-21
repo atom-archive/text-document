@@ -32,9 +32,33 @@ class TextDocument
     )
 
   characterIndexForPosition: (position) ->
-    @getLinesLayer().sourcePositionForPosition(position, @bufferLayer).column
+    @sourcePositionInLayerForPosition(
+      position, @getLinesLayer(), @bufferLayer
+    ).column
 
   positionForCharacterIndex: (charIndex) ->
     position = new Point(0, charIndex)
 
-    @getLinesLayer().positionForSourcePosition(position, @bufferLayer)
+    @positionInLayerForSourcePosition(
+      position, @getLinesLayer(), @bufferLayer
+    )
+
+  sourcePositionInLayerForPosition: (position, currentLayer, targetLayer) ->
+    return position if currentLayer is targetLayer
+
+    @sourcePositionInLayerForPosition(
+      currentLayer.sourcePositionForPosition(position),
+      currentLayer.sourceLayer,
+      targetLayer
+    )
+
+  positionInLayerForSourcePosition: (position, currentLayer, targetLayer) ->
+    return position if currentLayer is targetLayer
+
+    position = @positionInLayerForSourcePosition(
+      position,
+      currentLayer.sourceLayer,
+      targetLayer
+    )
+
+    currentLayer.positionForSourcePosition(position)

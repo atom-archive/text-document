@@ -55,23 +55,12 @@ class Layer
     iterator.seek(start)
     iterator.splice(extent, content)
 
-
-  sourcePositionForPosition: (position, layer) ->
-    return position if this is layer
-
+  sourcePositionForPosition: (position) ->
     iterator = @[Symbol.iterator]()
     iterator.seek(position)
+    iterator.getSourcePosition()
 
-    @sourceLayer.sourcePositionForPosition(
-      iterator.getSourcePosition(),
-      layer
-    )
-
-  positionForSourcePosition: (position, layer) ->
-    return position if this is layer
-
-    position = @sourceLayer.positionForSourcePosition(position, layer)
-
+  positionForSourcePosition: (position) ->
     iterator = @[Symbol.iterator]()
     iterator.seekToSourcePosition(position)
     iterator.getPosition()
