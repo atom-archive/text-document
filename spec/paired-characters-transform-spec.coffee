@@ -43,7 +43,6 @@ describe "PairedCharactersTransform", ->
   it "maps target positions to source positions and vice-versa", ->
     expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))
     expectMapsSymmetrically(layer, Point(0, 1), Point(0, 1))
+    expectMapsSymmetrically(layer, Point(0, 3), Point(0, 2))
     expectMapsSymmetrically(layer, Point(0, 4), Point(0, 3))
-
-    expectMapsToSource(layer, Point(0, 3), Point(0, 2))
-    expectMapsToSource(layer, Point(0, 6), Point(0, 4))
+    expectMapsSymmetrically(layer, Point(0, 6), Point(0, 4))

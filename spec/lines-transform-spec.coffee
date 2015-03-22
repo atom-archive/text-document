@@ -30,7 +30,7 @@ describe "LinesTransform", ->
 
   it "maps target positions to source positions and vice-versa", ->
     expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))
+    expectMapsSymmetrically(layer, Point(0, 1), Point(1, 0))
     expectMapsSymmetrically(layer, Point(0, 2), Point(1, 1))
     expectMapsSymmetrically(layer, Point(0, 3), Point(1, 2))
-    expectMapsToSource(layer, Point(0, 1), Point(1, 0))
-    expectMapsToSource(layer, Point(0, 5), Point(2, 0))
+    expectMapsSymmetrically(layer, Point(0, 5), Point(2, 0))
