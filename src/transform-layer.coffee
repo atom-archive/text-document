@@ -105,11 +105,13 @@ class TransformLayerIterator
 
     return if @clipping?
 
-    overshoot = position.column - lastSourcePosition.column
-    lastPosition.column += overshoot
-    @transformBuffer.reset(lastPosition, position)
-    @position = lastPosition
-    @sourcePosition = position
+    unless @sourcePosition.compare(position) is 0
+      overshoot = position.traversalFrom(lastSourcePosition)
+      lastPosition = lastPosition.traverse(overshoot)
+      @position = lastPosition
+      @sourcePosition = position
+
+    @transformBuffer.reset(@position, @sourcePosition)
 
   getPosition: ->
     @position.copy()
