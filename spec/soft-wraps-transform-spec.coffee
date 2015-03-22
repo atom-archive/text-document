@@ -74,3 +74,16 @@ describe "SoftWrapsTransform", ->
     expect(iterator.next()).toEqual(value: "defghijkl", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 9))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 13))
+
+  it "maps target positions to source positions and vice-versa", ->
+    layer = new TransformLayer(
+      new StringLayer("abcdefghijkl"),
+      new SoftWrapsTransform(5)
+    )
+
+    expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))
+    expectMapsSymmetrically(layer, Point(0, 1), Point(0, 1))
+    expectMapsSymmetrically(layer, Point(0, 6), Point(1, 1))
+
+    expectMapsToSource(layer, Point(0, 5), Point(1, 0))
+    expectMapsToSource(layer, Point(0, 10), Point(2, 0))

@@ -39,18 +39,11 @@ describe "HardTabsTransform", ->
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
   it "maps target positions to source positions and vice-versa", ->
-    symmetrical = (sourcePosition, position) ->
-      expect(layer.fromSourcePosition(sourcePosition)).toEqual(position)
-      expect(layer.toSourcePosition(position)).toEqual(sourcePosition)
-
-    toSource = (sourcePosition, position, clip) ->
-      expect(layer.toSourcePosition(position, clip)).toEqual(sourcePosition)
-
-    symmetrical(Point(0, 0), Point(0, 0))
-    toSource(Point(0, 0), Point(0, 1), clip.backward)
-    toSource(Point(0, 0), Point(0, 2), clip.backward)
-    toSource(Point(0, 0), Point(0, 3), clip.backward)
-    toSource(Point(0, 1), Point(0, 1), clip.forward)
-    toSource(Point(0, 1), Point(0, 2), clip.forward)
-    toSource(Point(0, 1), Point(0, 3), clip.forward)
-    symmetrical(Point(0, 1), Point(0, 4))
+    expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))
+    expectMapsToSource(layer, Point(0, 0), Point(0, 1), clip.backward)
+    expectMapsToSource(layer, Point(0, 0), Point(0, 2), clip.backward)
+    expectMapsToSource(layer, Point(0, 0), Point(0, 3), clip.backward)
+    expectMapsToSource(layer, Point(0, 1), Point(0, 1), clip.forward)
+    expectMapsToSource(layer, Point(0, 1), Point(0, 2), clip.forward)
+    expectMapsToSource(layer, Point(0, 1), Point(0, 3), clip.forward)
+    expectMapsSymmetrically(layer, Point(0, 1), Point(0, 4))
