@@ -39,6 +39,11 @@ class TransformLayer extends Layer
 
     @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}
 
+  clipPosition: (position) ->
+    iterator = @buildIterator()
+    iterator.seek(position)
+    iterator.getPosition()
+
   toSourcePosition: (position, clip) ->
     iterator = @buildIterator()
     iterator.seek(position, clip)
@@ -68,12 +73,14 @@ class TransformLayerIterator
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformBuffer.reset(@position, @sourcePosition)
+    position = new Point(position.row, 0) if position.column < 0
+
     return if position.isZero()
 
     until @position.compare(position) >= 0
       lastPosition = @position
       lastSourcePosition = @sourcePosition
-      {done} = @next()
+      {value, done} = @next()
       return if done
 
     if @clipping? and @position.compare(position) > 0
@@ -84,9 +91,16 @@ class TransformLayerIterator
           @sourcePosition = lastSourcePosition
           return
 
-    unless @position.compare(position) is 0
+    if @position.compare(position) != 0 and lastPosition
+      if @position.row > position.row
+        position = new Point(
+          position.row,
+          Math.min(value.length - 1, position.column)
+        )
+
       overshoot = position.traversalFrom(lastPosition)
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
+
       @position = position
       @sourcePosition = lastSourcePosition
     @transformBuffer.reset(@position, @sourcePosition)
@@ -101,11 +115,11 @@ class TransformLayerIterator
       lastPosition = @position
       lastSourcePosition = @sourcePosition
       {done} = @next()
-      break if done
+      return if done
 
     return if @clipping?
 
-    unless @sourcePosition.compare(position) is 0
+    if @sourcePosition.compare(position) != 0 and lastSourcePosition
       overshoot = position.traversalFrom(lastSourcePosition)
       lastPosition = lastPosition.traverse(overshoot)
       @position = lastPosition
