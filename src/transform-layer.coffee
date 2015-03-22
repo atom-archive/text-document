@@ -44,9 +44,9 @@ class TransformLayer extends Layer
     iterator.seek(position, clip)
     iterator.getSourcePosition()
 
-  fromSourcePosition: (sourcePosition, clip) ->
+  fromSourcePosition: (sourcePosition) ->
     iterator = @buildIterator()
-    iterator.seekToSourcePosition(sourcePosition, clip)
+    iterator.seekToSourcePosition(sourcePosition)
     iterator.getPosition()
 
 class TransformLayerIterator
