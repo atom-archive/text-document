@@ -40,14 +40,19 @@ class TransformLayer extends Layer
 
     @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}
 
+  clipPosition: (position, clip) ->
+    iterator = @buildIterator()
+    iterator.seek(position, clip)
+    iterator.getPosition()
+
   toSourcePosition: (position, clip) ->
     iterator = @buildIterator()
     iterator.seek(position, clip)
     iterator.getSourcePosition()
 
-  fromSourcePosition: (sourcePosition) ->
+  fromSourcePosition: (sourcePosition, clip) ->
     iterator = @buildIterator()
-    iterator.seekToSourcePosition(sourcePosition)
+    iterator.seekToSourcePosition(sourcePosition, clip)
     iterator.getPosition()
 
 class TransformLayerIterator
@@ -69,6 +74,7 @@ class TransformLayerIterator
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformIterator.reset(@position, @sourcePosition)
+    position = position.sanitizeNegatives()
     return if position.isZero()
 
     until @position.compare(position) >= 0
@@ -82,6 +88,7 @@ class TransformLayerIterator
         when CLIP_FORWARD
           return
         when CLIP_BACKWARD
+          @position = lastPosition
           @sourcePosition = lastSourcePosition
           return
 
@@ -92,26 +99,33 @@ class TransformLayerIterator
       @sourcePosition = lastSourcePosition
     @transformIterator.reset(@position, @sourcePosition)
 
-  seekToSourcePosition: (position) ->
+  seekToSourcePosition: (position, clip = CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformIterator.reset(@position, @sourcePosition)
+    position = position.sanitizeNegatives()
     return if position.isZero()
 
     until @sourcePosition.compare(position) >= 0
       lastPosition = @position
       lastSourcePosition = @sourcePosition
       {done} = @next()
-      break if done
+      return if done
 
-    return if @clipping?
+    if @clipping? and @sourcePosition.compare(position) > 0
+      switch clip
+        when CLIP_FORWARD
+          return
+        when CLIP_BACKWARD
+          @position = lastPosition
+          @sourcePosition = lastSourcePosition
+          return
 
     unless @sourcePosition.compare(position) is 0
       overshoot = position.traversalFrom(lastSourcePosition)
       lastPosition = lastPosition.traverse(overshoot)
       @position = lastPosition
       @sourcePosition = position
-
     @transformIterator.reset(@position, @sourcePosition)
 
   getPosition: ->
