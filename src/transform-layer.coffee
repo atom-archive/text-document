@@ -69,37 +69,25 @@ class TransformLayerIterator
     else
       {value: undefined, done: true}
 
-  seek: (position, clip=CLIP_BACKWARD) ->
-    @position = Point.zero()
-    @sourcePosition = Point.zero()
-    @transformBuffer.reset(@position, @sourcePosition)
-    position = position.sanitize()
-
-    return if position.isZero()
-
-    until @position.compare(position) >= 0
-      lastPosition = @position
-      lastSourcePosition = @sourcePosition
-      {done} = @next()
-      return if done
-
-    if @clipping? and @position.compare(position) > 0
-      switch clip
-        when CLIP_FORWARD
-          return
-        when CLIP_BACKWARD
-          @position = lastPosition
-          @sourcePosition = lastSourcePosition
-          return
-
-    unless @position.compare(position) is 0
+  seek: (position, clip) ->
+    calculateOvershoot = (position, lastPosition, lastSourcePosition) =>
       overshoot = position.traversalFrom(lastPosition)
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
       @position = position
       @sourcePosition = lastSourcePosition
-    @transformBuffer.reset(@position, @sourcePosition)
 
-  seekToSourcePosition: (position, clip = CLIP_BACKWARD) ->
+    @_seek (=> @position), position, calculateOvershoot, clip
+
+  seekToSourcePosition: (position, clip) ->
+    calculateOvershoot = (position, lastPosition, lastSourcePosition) =>
+      overshoot = position.traversalFrom(lastSourcePosition)
+      lastPosition = lastPosition.traverse(overshoot)
+      @position = lastPosition
+      @sourcePosition = position
+
+    @_seek (=> @sourcePosition), position, calculateOvershoot, clip
+
+  _seek: (seekPropertyFn, position, calculateOvershoot, clip = CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformBuffer.reset(@position, @sourcePosition)
@@ -107,13 +95,13 @@ class TransformLayerIterator
 
     return if position.isZero()
 
-    until @sourcePosition.compare(position) >= 0
+    until seekPropertyFn().compare(position) >= 0
       lastPosition = @position
       lastSourcePosition = @sourcePosition
       {done} = @next()
       return if done
 
-    if @clipping? and @sourcePosition.compare(position) > 0
+    if @clipping? and seekPropertyFn().compare(position) > 0
       switch clip
         when CLIP_FORWARD
           return
@@ -122,11 +110,8 @@ class TransformLayerIterator
           @sourcePosition = lastSourcePosition
           return
 
-    unless @sourcePosition.compare(position) is 0
-      overshoot = position.traversalFrom(lastSourcePosition)
-      lastPosition = lastPosition.traverse(overshoot)
-      @position = lastPosition
-      @sourcePosition = position
+    unless seekPropertyFn().compare(position) is 0
+      calculateOvershoot(position, lastPosition, lastSourcePosition)
 
     @transformBuffer.reset(@position, @sourcePosition)
 
