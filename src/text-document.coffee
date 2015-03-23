@@ -31,6 +31,11 @@ class TextDocument
       @getLinesLayer()
     )
 
+  clipPosition: (position) ->
+    position = Point.fromObject(position)
+
+    @getLinesLayer().clipPosition(position)
+
   positionForCharacterIndex: (index) ->
     @getLinesLayer().fromSourcePosition(
       new Point(0, index)
