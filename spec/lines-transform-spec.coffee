@@ -2,7 +2,7 @@ Point = require "../src/point"
 LinesTransform = require "../src/lines-transform"
 StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
-{clip} = TransformLayer::
+{clip} = TransformLayer
 
 describe "LinesTransform", ->
   layer = null

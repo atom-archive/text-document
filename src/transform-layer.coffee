@@ -1,18 +1,19 @@
 Layer = require "./layer"
 Point = require "./point"
-OperatorIterator = require './operator-iterator'
+TransformIterator = require './transform-iterator'
 
 CLIP_FORWARD = Symbol('clip forward')
 CLIP_BACKWARD = Symbol('clip backward')
 
 module.exports =
 class TransformLayer extends Layer
-  clip:
+  @clip:
     forward: CLIP_FORWARD
     backward: CLIP_BACKWARD
+
   pendingChangeOldExtent: null
 
-  constructor: (@sourceLayer, @operator) ->
+  constructor: (@sourceLayer, @transformer) ->
     super
     @sourceLayer.onWillChange(@sourceLayerWillChange)
     @sourceLayer.onDidChange(@sourceLayerDidChange)
@@ -60,21 +61,20 @@ class TransformLayerIterator
   constructor: (@layer, sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformBuffer = new OperatorIterator(@layer.operator, sourceIterator)
+    @transformIterator = new TransformIterator(@layer.transformer, sourceIterator)
 
   next: ->
-    if next = @transformBuffer.next()
-      {@position, @sourcePosition, content, @clipping} = next
-      {value: content, done: false}
-    else
-      {value: undefined, done: true}
+    unless (next = @transformIterator.next()).done
+      @position = @transformIterator.getPosition()
+      @sourcePosition = @transformIterator.getSourcePosition()
+      @clipping = @transformIterator.getClippingStatus()
+    next
 
   seek: (position, clip=CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformBuffer.reset(@position, @sourcePosition)
+    @transformIterator.reset(@position, @sourcePosition)
     position = position.sanitize()
-
     return if position.isZero()
 
     until @position.compare(position) >= 0
@@ -97,14 +97,13 @@ class TransformLayerIterator
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
       @position = position
       @sourcePosition = lastSourcePosition
-    @transformBuffer.reset(@position, @sourcePosition)
+    @transformIterator.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (position, clip = CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformBuffer.reset(@position, @sourcePosition)
+    @transformIterator.reset(@position, @sourcePosition)
     position = position.sanitize()
-
     return if position.isZero()
 
     until @sourcePosition.compare(position) >= 0
@@ -127,8 +126,7 @@ class TransformLayerIterator
       lastPosition = lastPosition.traverse(overshoot)
       @position = lastPosition
       @sourcePosition = position
-
-    @transformBuffer.reset(@position, @sourcePosition)
+    @transformIterator.reset(@position, @sourcePosition)
 
   getPosition: ->
     @position.copy()

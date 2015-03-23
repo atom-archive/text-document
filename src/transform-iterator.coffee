@@ -3,19 +3,43 @@ Point = require "./point"
 CLIPPING__OPEN_INTERVAL = Symbol('clipping (open interval)')
 
 module.exports =
-class OperatorIterator
-  constructor: (@operator, @sourceIterator) ->
-    @reset(Point.zero(), Point.zero())
-    @operationContext = {
-      clipping: open: CLIPPING__OPEN_INTERVAL
-      read: @read.bind(this)
-      transform: @transform.bind(this)
-      getPosition: @getPosition.bind(this)
-    }
+class TransformIterator
+  constructor: (transform, sourceIterator) ->
+    @transformBuffer = new TransformBuffer(transform, sourceIterator)
 
   next: ->
+    next = @transformBuffer.operate()
+    if next
+      {content, @clipping, @position, @sourcePosition} = next
+      {value: content, done: false}
+    else
+      {value: undefined, done: true}
+
+  reset: (position, sourcePosition) ->
+    @transformBuffer.reset(position, sourcePosition)
+
+  getPosition: ->
+    @position.copy()
+
+  getSourcePosition: ->
+    @sourcePosition.copy()
+
+  getClippingStatus: ->
+    @clipping
+
+class TransformBuffer
+  constructor: (@transformer, @sourceIterator) ->
+    @reset(Point.zero(), Point.zero())
+    @transformContext = {
+      clipping: open: CLIPPING__OPEN_INTERVAL
+      read: @read.bind(this)
+      getPosition: @getPosition.bind(this)
+      transform: @transform.bind(this)
+    }
+
+  operate: ->
     @inputIndex = 0
-    @operator.operate(@operationContext) unless @outputs.length > 0
+    @transformer.operate(@transformContext) unless @outputs.length > 0
     @outputs.shift()
 
   reset: (position, sourcePosition) ->
@@ -37,6 +61,9 @@ class OperatorIterator
       )
     @inputIndex++
     content
+
+  getPosition: ->
+    @position.copy()
 
   transform: (consumedCount, producedContent, producedExtent, clipping) ->
     if producedContent?
@@ -72,6 +99,3 @@ class OperatorIterator
       sourcePosition: @sourcePosition.copy()
       clipping: clipping
     )
-
-  getPosition: ->
-    @position.copy()
