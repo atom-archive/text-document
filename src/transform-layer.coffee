@@ -39,9 +39,9 @@ class TransformLayer extends Layer
 
     @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}
 
-  clipPosition: (position) ->
+  clipPosition: (position, clip) ->
     iterator = @buildIterator()
-    iterator.seek(position)
+    iterator.seek(position, clip)
     iterator.getPosition()
 
   toSourcePosition: (position, clip) ->
@@ -49,9 +49,9 @@ class TransformLayer extends Layer
     iterator.seek(position, clip)
     iterator.getSourcePosition()
 
-  fromSourcePosition: (sourcePosition) ->
+  fromSourcePosition: (sourcePosition, clip) ->
     iterator = @buildIterator()
-    iterator.seekToSourcePosition(sourcePosition)
+    iterator.seekToSourcePosition(sourcePosition, clip)
     iterator.getPosition()
 
 class TransformLayerIterator
@@ -88,14 +88,11 @@ class TransformLayerIterator
         when CLIP_FORWARD
           return
         when CLIP_BACKWARD
+          @position = lastPosition
           @sourcePosition = lastSourcePosition
           return
 
     if @position.compare(position) != 0 and lastPosition?
-      if lastPosition.row == position.row
-        column   = Math.min(value.length - 1, position.column)
-        position = lastPosition.traverse Point(0, column)
-
       overshoot = position.traversalFrom(lastPosition)
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
 
@@ -103,7 +100,7 @@ class TransformLayerIterator
       @sourcePosition = lastSourcePosition
     @transformBuffer.reset(@position, @sourcePosition)
 
-  seekToSourcePosition: (position) ->
+  seekToSourcePosition: (position, clip = CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformBuffer.reset(@position, @sourcePosition)
@@ -117,7 +114,16 @@ class TransformLayerIterator
       {done} = @next()
       return if done
 
-    return if @clipping?
+    if @clipping? and @sourcePosition.compare(position) > 0
+      switch clip
+        when CLIP_FORWARD
+          return
+
+        when CLIP_BACKWARD
+          @position = lastPosition
+          @sourcePosition = lastSourcePosition
+
+          return
 
     if @sourcePosition.compare(position) != 0 and lastSourcePosition?
       overshoot = position.traversalFrom(lastSourcePosition)
