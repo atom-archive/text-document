@@ -1,10 +1,11 @@
+Point = require './point'
 WhitespaceRegExp = /\s/
 
 module.exports =
 class SoftWrapsTransform
   constructor: (@maxColumn) ->
 
-  operate: ({read, consume, passThrough, produceCharacters, produceNewline, getPosition}) ->
+  operate: ({read, transform, getPosition}) ->
     {column} = getPosition()
     startColumn = column
     lastWhitespaceColumn = null
@@ -16,7 +17,7 @@ class SoftWrapsTransform
 
       for i in [0...input.length] by 1
         if input[i] is "\n"
-          passThrough(lastOutputLength + i + 1)
+          transform(lastOutputLength + i + 1)
           return
 
         if WhitespaceRegExp.test(input[i])
@@ -27,11 +28,10 @@ class SoftWrapsTransform
           else
             output = output.substring(0, lastOutputLength + i)
 
-          passThrough(output.length)
-          produceNewline()
+          transform(output.length, output, Point(1, 0))
           return
 
         column++
 
     if output.length > 0
-      passThrough(output.length)
+      transform(output.length)

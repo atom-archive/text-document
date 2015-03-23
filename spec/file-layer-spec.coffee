@@ -19,7 +19,7 @@ describe "FileLayer", ->
         # α-β-γ-δ
         fs.writeFileSync(filePath, "\u03B1-\u03B2-\u03B3-\u03B4")
 
-        iterator = layer[Symbol.iterator]()
+        iterator = layer.buildIterator()
         expect(iterator.getPosition()).toEqual Point.zero()
 
         expect(iterator.next()).toEqual(value: "\u03B1-\u03B2", done: false)
@@ -40,7 +40,7 @@ describe "FileLayer", ->
         # α-β-γ-δ
         fs.writeFileSync(filePath, "\u03B1-\u03B2-\u03B3-\u03B4")
 
-        iterator = layer[Symbol.iterator]()
+        iterator = layer.buildIterator()
         iterator.seek(Point(0, 2))
         expect(iterator.next()).toEqual(value: "\u03B2-\u03B3", done: false)
         expect(iterator.getPosition()).toEqual Point(0, 5)

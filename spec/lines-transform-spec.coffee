@@ -10,7 +10,7 @@ describe "LinesTransform", ->
     layer = new TransformLayer(new StringLayer("\nabc\ndefg\n"), new LinesTransform)
 
   it "breaks the source text into lines", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
     expect(iterator.next()).toEqual(value: "\n", done: false)
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 1))
@@ -27,3 +27,10 @@ describe "LinesTransform", ->
     expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.getPosition()).toEqual(Point(3, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
+
+  it "maps target positions to source positions and vice-versa", ->
+    expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))
+    expectMapsSymmetrically(layer, Point(0, 1), Point(1, 0))
+    expectMapsSymmetrically(layer, Point(0, 2), Point(1, 1))
+    expectMapsSymmetrically(layer, Point(0, 3), Point(1, 2))
+    expectMapsSymmetrically(layer, Point(0, 5), Point(2, 0))

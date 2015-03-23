@@ -13,7 +13,7 @@ describe "PairedCharactersTransform", ->
     )
 
   it "replaces paired characters with single characters", ->
-    iterator = layer[Symbol.iterator]()
+    iterator = layer.buildIterator()
 
     expect(iterator.next()).toEqual(value: "a", done: false)
     expect(iterator.getPosition()).toEqual(Point(0, 1))
@@ -38,3 +38,11 @@ describe "PairedCharactersTransform", ->
     expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.getPosition()).toEqual(Point(0, 5))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+
+
+  it "maps target positions to source positions and vice-versa", ->
+    expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))
+    expectMapsSymmetrically(layer, Point(0, 1), Point(0, 1))
+    expectMapsSymmetrically(layer, Point(0, 3), Point(0, 2))
+    expectMapsSymmetrically(layer, Point(0, 4), Point(0, 3))
+    expectMapsSymmetrically(layer, Point(0, 6), Point(0, 4))

@@ -2,18 +2,16 @@ module.exports =
 class HardTabsTransform
   constructor: (@tabLength) ->
 
-  operate: ({read, consume, passThrough, produceCharacters, getPosition}) ->
+  operate: ({read, transform, getPosition, clipping}) ->
     if (input = read())?
       switch (i = input.indexOf("\t"))
         when -1
-          passThrough(input.length)
+          transform(input.length)
         when 0
-          consume(1)
-          produceCharacters(@tabStringForColumn(getPosition().column))
+          transform(1, @tabStringForColumn(getPosition().column), null, clipping.open)
         else
-          passThrough(i)
-          consume(1)
-          produceCharacters(@tabStringForColumn(getPosition().column))
+          transform(i)
+          transform(1, @tabStringForColumn(getPosition().column), null, clipping.open)
 
   tabStringForColumn: (column) ->
     length = @tabLength - (column % @tabLength)

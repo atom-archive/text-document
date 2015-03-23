@@ -6,7 +6,7 @@ class StringLayer extends Layer
   constructor: (@content) ->
     super
 
-  @::[Symbol.iterator] = ->
+  buildIterator: ->
     new Iterator(this)
 
 class Iterator

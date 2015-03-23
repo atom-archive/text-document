@@ -1,28 +1,35 @@
 Layer = require "./layer"
 Point = require "./point"
-TransformIterator = require "./transform-iterator"
+TransformIterator = require './transform-iterator'
+
+CLIP_FORWARD = Symbol('clip forward')
+CLIP_BACKWARD = Symbol('clip backward')
 
 module.exports =
 class TransformLayer extends Layer
+  @clip:
+    forward: CLIP_FORWARD
+    backward: CLIP_BACKWARD
+
   pendingChangeOldExtent: null
 
-  constructor: (@sourceLayer, @transform) ->
+  constructor: (@sourceLayer, @transformer) ->
     super
     @sourceLayer.onWillChange(@sourceLayerWillChange)
     @sourceLayer.onDidChange(@sourceLayerDidChange)
 
-  @::[Symbol.iterator] = ->
-    new TransformIterator(this, @sourceLayer[Symbol.iterator]())
+  buildIterator: ->
+    new TransformLayerIterator(this, @sourceLayer.buildIterator())
 
   sourceLayerWillChange: ({position, oldExtent}) =>
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     iterator.seekToSourcePosition(position)
     startPosition = iterator.getPosition()
     iterator.seekToSourcePosition(position.traverse(oldExtent))
     @pendingChangeOldExtent = iterator.getPosition().traversalFrom(startPosition)
 
   sourceLayerDidChange: ({position, newExtent}) =>
-    iterator = @[Symbol.iterator]()
+    iterator = @buildIterator()
     iterator.seekToSourcePosition(position)
     startPosition = iterator.getPosition()
     iterator.seekToSourcePosition(position.traverse(newExtent))
@@ -32,3 +39,83 @@ class TransformLayer extends Layer
     @pendingChangeOldExtent = null
 
     @emitter.emit "did-change", {position: startPosition, oldExtent, newExtent}
+
+  toSourcePosition: (position, clip) ->
+    iterator = @buildIterator()
+    iterator.seek(position, clip)
+    iterator.getSourcePosition()
+
+  fromSourcePosition: (sourcePosition) ->
+    iterator = @buildIterator()
+    iterator.seekToSourcePosition(sourcePosition)
+    iterator.getPosition()
+
+class TransformLayerIterator
+  clipping: undefined
+
+  constructor: (@layer, sourceIterator) ->
+    @position = Point.zero()
+    @sourcePosition = Point.zero()
+    @transformIterator = new TransformIterator(@layer.transformer, sourceIterator)
+
+  next: ->
+    unless (next = @transformIterator.next()).done
+      @position = @transformIterator.getPosition()
+      @sourcePosition = @transformIterator.getSourcePosition()
+      @clipping = @transformIterator.getClippingStatus()
+    next
+
+  seek: (position, clip=CLIP_BACKWARD) ->
+    @position = Point.zero()
+    @sourcePosition = Point.zero()
+    @transformIterator.reset(@position, @sourcePosition)
+    return if position.isZero()
+
+    until @position.compare(position) >= 0
+      lastPosition = @position
+      lastSourcePosition = @sourcePosition
+      {done} = @next()
+      return if done
+
+    if @clipping? and @position.compare(position) > 0
+      switch clip
+        when CLIP_FORWARD
+          return
+        when CLIP_BACKWARD
+          @sourcePosition = lastSourcePosition
+          return
+
+    unless @position.compare(position) is 0
+      overshoot = position.traversalFrom(lastPosition)
+      lastSourcePosition = lastSourcePosition.traverse(overshoot)
+      @position = position
+      @sourcePosition = lastSourcePosition
+    @transformIterator.reset(@position, @sourcePosition)
+
+  seekToSourcePosition: (position) ->
+    @position = Point.zero()
+    @sourcePosition = Point.zero()
+    @transformIterator.reset(@position, @sourcePosition)
+    return if position.isZero()
+
+    until @sourcePosition.compare(position) >= 0
+      lastPosition = @position
+      lastSourcePosition = @sourcePosition
+      {done} = @next()
+      break if done
+
+    return if @clipping?
+
+    unless @sourcePosition.compare(position) is 0
+      overshoot = position.traversalFrom(lastSourcePosition)
+      lastPosition = lastPosition.traverse(overshoot)
+      @position = lastPosition
+      @sourcePosition = position
+
+    @transformIterator.reset(@position, @sourcePosition)
+
+  getPosition: ->
+    @position.copy()
+
+  getSourcePosition: ->
+    @sourcePosition.copy()
