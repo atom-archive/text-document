@@ -7,27 +7,6 @@ describe "TextDocument", ->
   beforeEach ->
     document = new TextDocument
 
-  describe "::buildDisplayLayer()", ->
-    describe "::slice(start, end)", ->
-      it "returns the content between the start and end points", ->
-        document.setText("""
-          abcd\tefg
-
-          hij
-        """)
-
-        layer = document.buildDisplayLayer(
-          softWrapColumn: 10
-          tabLength: 4
-        )
-
-        expect(layer.getLines()).toEqual [
-          "abcd\t   "
-          "efg\n"
-          "\n"
-          "hij"
-        ]
-
   describe "::clipPosition(position)", ->
     it "returns a valid position closest to the given position", ->
       document = new TextDocument
