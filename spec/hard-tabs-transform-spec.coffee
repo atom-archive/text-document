@@ -2,7 +2,7 @@ Point = require "../src/point"
 HardTabsTransform = require "../src/hard-tabs-transform"
 StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
-{clip} = TransformLayer::
+{clip} = TransformLayer
 {expectPositionMappings} = require './spec-helper'
 
 describe "HardTabsTransform", ->

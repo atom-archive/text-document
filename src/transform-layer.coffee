@@ -7,9 +7,10 @@ CLIP_BACKWARD = Symbol('clip backward')
 
 module.exports =
 class TransformLayer extends Layer
-  clip:
+  @clip:
     forward: CLIP_FORWARD
     backward: CLIP_BACKWARD
+
   pendingChangeOldExtent: null
 
   constructor: (@sourceLayer, @transformer) ->
