@@ -74,7 +74,7 @@ class TransformLayerIterator
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformIterator.reset(@position, @sourcePosition)
-    position = position.sanitize()
+    position = position.sanitizeNegatives()
     return if position.isZero()
 
     until @position.compare(position) >= 0
@@ -103,7 +103,7 @@ class TransformLayerIterator
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformIterator.reset(@position, @sourcePosition)
-    position = position.sanitize()
+    position = position.sanitizeNegatives()
     return if position.isZero()
 
     until @sourcePosition.compare(position) >= 0
