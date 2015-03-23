@@ -73,7 +73,7 @@ class TransformLayerIterator
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformBuffer.reset(@position, @sourcePosition)
-    position = new Point(position.row, 0) if position.column < 0
+    position = position.sanitize()
 
     return if position.isZero()
 
@@ -91,12 +91,10 @@ class TransformLayerIterator
           @sourcePosition = lastSourcePosition
           return
 
-    if @position.compare(position) != 0 and lastPosition
-      if @position.row > position.row
-        position = new Point(
-          position.row,
-          Math.min(value.length - 1, position.column)
-        )
+    if @position.compare(position) != 0 and lastPosition?
+      if lastPosition.row == position.row
+        column   = Math.min(value.length - 1, position.column)
+        position = lastPosition.traverse Point(0, column)
 
       overshoot = position.traversalFrom(lastPosition)
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
@@ -109,6 +107,8 @@ class TransformLayerIterator
     @position = Point.zero()
     @sourcePosition = Point.zero()
     @transformBuffer.reset(@position, @sourcePosition)
+    position = position.sanitize()
+
     return if position.isZero()
 
     until @sourcePosition.compare(position) >= 0
@@ -119,7 +119,7 @@ class TransformLayerIterator
 
     return if @clipping?
 
-    if @sourcePosition.compare(position) != 0 and lastSourcePosition
+    if @sourcePosition.compare(position) != 0 and lastSourcePosition?
       overshoot = position.traversalFrom(lastSourcePosition)
       lastPosition = lastPosition.traverse(overshoot)
       @position = lastPosition
