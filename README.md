@@ -36,13 +36,13 @@ This layer builds on `FileLayer`, storing a portion of the file in memory based 
 
 ### MutationLayer
 
-This layer stores changes to the document since the last load or save. It uses a `RegionMap`, discussed below, to record which regions of the buffer have been replaced by new content, and what that new content is. When the document is saved, this layer combines its stored changes with unchanged content from regions in the `BufferLayer` below to produce an output stream that is atomically written to the file system. This layer emits change events when mutations occur that can be processed by layers above it.
+This layer stores changes to the document since the last load or save. It uses a `Patch`, discussed below, to record which regions of the buffer have been replaced by new content, and what that new content is. When the document is saved, this layer combines its stored changes with unchanged content from regions in the `BufferLayer` below to produce an output stream that is atomically written to the file system. This layer emits change events when mutations occur that can be processed by layers above it.
 
 ### TransformLayer
 
 Transform layers can be instantiated with different transform implementations to implement things like tab expansion and soft wrap. They also store a region map which indexes the spatial correspondence between source and target coordinates. In addition to performing transforms in an initial streaming fashion, transform layers also transform and re-emit change events from the layer below.
 
-### RegionMap
+### Patch
 
 This class indexes the spatial correspondence between two layers. Each transform layer uses a region map to efficiently translate positions between its source and target coordinate spaces. It is also used by the `BufferLayer` to store in-memory content and the `MutationLayer` to store changes to content.
 
@@ -58,7 +58,7 @@ The basic structure is in place, but there's still a lot to be done.
 
 * [ ] Extract `MutationLayer` out of `BufferLayer`
 * [ ] Implement position translation between layers
-* [ ] Index position translation in `TransformLayer` using a `RegionMap`. The `RegionMap` API will need to be extended a bit to achieve this.
+* [ ] Index position translation in `TransformLayer` using a `Patch`. The `Patch` API will need to be extended a bit to achieve this.
 * [ ] Implement marker API based on an efficient index
 * [ ] Implement `ScopedTextDocument` and create a `TextContent` data type that can intersperse scope start and end tags with strings of normal content.
 * [ ] Add temp file handling to `FileLayer`

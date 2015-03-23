@@ -1,12 +1,12 @@
 Point = require "./point"
 Layer = require "./layer"
-RegionMap = require "./region-map"
+Patch = require "./patch"
 
 module.exports =
 class BufferLayer extends Layer
   constructor: (@source) ->
     super
-    @bufferedContent = new RegionMap
+    @bufferedContent = new Patch
     @activeRegionStart = null
     @activeRegionEnd = null
 
