@@ -95,7 +95,6 @@ class TransformLayerIterator
     unless @position.compare(position) is 0
       overshoot = position.traversalFrom(lastPosition)
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
-
       @position = position
       @sourcePosition = lastSourcePosition
     @transformBuffer.reset(@position, @sourcePosition)

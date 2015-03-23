@@ -2,6 +2,7 @@ Point = require "../src/point"
 LinesTransform = require "../src/lines-transform"
 StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
+{clip} = TransformLayer::
 
 describe "LinesTransform", ->
   layer = null
@@ -39,4 +40,8 @@ describe "LinesTransform", ->
     expectMapsSymmetrically(layer, Point(0, 1), Point(1, 0))
     expectMapsSymmetrically(layer, Point(0, 2), Point(1, 1))
     expectMapsSymmetrically(layer, Point(0, 3), Point(1, 2))
+    expectMapsSymmetrically(layer, Point(0, 4), Point(1, 3))
+    expectMapsFromSource(layer, Point(0, 5), Point(1, 3), clip.backward)
+    expectMapsFromSource(layer, Point(0, 5), Point(2, 0), clip.forward)
     expectMapsSymmetrically(layer, Point(0, 6), Point(2, 0))
+    expectMapsSymmetrically(layer, Point(0, 7), Point(2, 1))
