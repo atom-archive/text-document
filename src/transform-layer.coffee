@@ -80,7 +80,7 @@ class TransformLayerIterator
     until @position.compare(position) >= 0
       lastPosition = @position
       lastSourcePosition = @sourcePosition
-      {value, done} = @next()
+      {done} = @next()
       return if done
 
     if @clipping? and @position.compare(position) > 0
@@ -92,7 +92,7 @@ class TransformLayerIterator
           @sourcePosition = lastSourcePosition
           return
 
-    if @position.compare(position) != 0 and lastPosition?
+    unless @position.compare(position) is 0
       overshoot = position.traversalFrom(lastPosition)
       lastSourcePosition = lastSourcePosition.traverse(overshoot)
 
@@ -118,14 +118,12 @@ class TransformLayerIterator
       switch clip
         when CLIP_FORWARD
           return
-
         when CLIP_BACKWARD
           @position = lastPosition
           @sourcePosition = lastSourcePosition
-
           return
 
-    if @sourcePosition.compare(position) != 0 and lastSourcePosition?
+    unless @sourcePosition.compare(position) is 0
       overshoot = position.traversalFrom(lastSourcePosition)
       lastPosition = lastPosition.traverse(overshoot)
       @position = lastPosition
