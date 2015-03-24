@@ -8,7 +8,7 @@ describe "LinesTransform", ->
   layer = null
 
   beforeEach ->
-    layer = new TransformLayer(new StringLayer("\nabc\r\ndefg\n"), new LinesTransform)
+    layer = new TransformLayer(new StringLayer("\nabc\r\ndefg\n\r"), new LinesTransform)
 
   it "breaks the source text into lines", ->
     iterator = layer.buildIterator()
@@ -20,20 +20,26 @@ describe "LinesTransform", ->
     expect(iterator.getPosition()).toEqual(Point(1, 3))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 4))
 
-    expect(iterator.next()).toEqual(value: "\n", done: false)
+    expect(iterator.next()).toEqual(value: "\r\n", done: false)
     expect(iterator.getPosition()).toEqual(Point(2, 0))
     expect(iterator.getSourcePosition()).toEqual(Point(0, 6))
 
     expect(iterator.next()).toEqual(value: "defg", done: false)
     expect(iterator.getPosition()).toEqual(Point(2, 4))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
     expect(iterator.next()).toEqual(value: "\n", done: false)
     expect(iterator.getPosition()).toEqual(Point(3, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 11))
+
+    expect(iterator.next()).toEqual(value: "\r", done: false)
+    expect(iterator.getPosition()).toEqual(Point(4, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 12))
 
     expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.next()).toEqual {value: undefined, done: true}
-    expect(iterator.getPosition()).toEqual(Point(3, 0))
-    expect(iterator.getSourcePosition()).toEqual(Point(0, 11))
+    expect(iterator.getPosition()).toEqual(Point(4, 0))
+    expect(iterator.getSourcePosition()).toEqual(Point(0, 12))
 
   it "maps target positions to source positions and vice-versa", ->
     expectMapsSymmetrically(layer, Point(0, 0), Point(0, 0))

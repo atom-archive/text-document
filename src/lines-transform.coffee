@@ -1,16 +1,16 @@
 Point = require './point'
 
+LineBreak = /\r?\n|\r/
+
 module.exports =
 class LinesTransform
   operate: ({read, transform, clipping}) ->
     if input = read()
-      switch (i = input.indexOf("\n"))
-        when -1
-          transform(input.length)
-        when 0
-          transform(1, "\n", Point(1, 0))
+      if match = input.match(LineBreak)
+        if match.index is 0
+          transform(match[0].length, match[0], Point(1, 0))
         else
-          carriage = input[i - 1] == "\r" ? 1 : 0
-
-          transform(i - carriage)
-          transform(1 + carriage, "\n", Point(1, 0), clipping.open)
+          transform(match.index)
+          transform(match[0].length, match[0], Point(1, 0), clipping.open)
+      else
+        transform(input.length)
