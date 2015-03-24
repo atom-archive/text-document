@@ -1,3 +1,4 @@
+fs = require "fs"
 Point = require "../src/point"
 TextDocument = require "../src/text-document"
 
@@ -15,29 +16,52 @@ describe "TextDocument", ->
       expect(document.lineForRow(0)).toBe ''
       expect(document.lineEndingForRow(0)).toBe ''
 
-    it "can be constructed with initial text containing no trailing newline", ->
-      text = "hello\nworld\r\nhow are you doing?\rlast"
-      document = new TextDocument(text)
-      expect(document.getLineCount()).toBe 4
-      expect(document.getText()).toBe text
-      expect(document.lineForRow(0)).toBe 'hello'
-      expect(document.lineEndingForRow(0)).toBe '\n'
-      expect(document.lineForRow(1)).toBe 'world'
-      expect(document.lineEndingForRow(1)).toBe '\r\n'
-      expect(document.lineForRow(2)).toBe 'how are you doing?'
-      expect(document.lineEndingForRow(2)).toBe '\r'
-      expect(document.lineForRow(3)).toBe 'last'
-      expect(document.lineEndingForRow(3)).toBe ''
+    describe "when text is given", ->
+      it "can be constructed with initial text containing no trailing newline", ->
+        text = "hello\nworld\r\nhow are you doing?\rlast"
+        document = new TextDocument(text)
+        expect(document.getLineCount()).toBe 4
+        expect(document.getText()).toBe text
+        expect(document.lineForRow(0)).toBe 'hello'
+        expect(document.lineEndingForRow(0)).toBe '\n'
+        expect(document.lineForRow(1)).toBe 'world'
+        expect(document.lineEndingForRow(1)).toBe '\r\n'
+        expect(document.lineForRow(2)).toBe 'how are you doing?'
+        expect(document.lineEndingForRow(2)).toBe '\r'
+        expect(document.lineForRow(3)).toBe 'last'
+        expect(document.lineEndingForRow(3)).toBe ''
 
-    it "can be constructed with initial text containing a trailing newline", ->
-      text = "first\n"
-      document = new TextDocument(text)
-      expect(document.getLineCount()).toBe 2
-      expect(document.getText()).toBe text
-      expect(document.lineForRow(0)).toBe 'first'
-      expect(document.lineEndingForRow(0)).toBe '\n'
-      expect(document.lineForRow(1)).toBe ''
-      expect(document.lineEndingForRow(1)).toBe ''
+      it "can be constructed with initial text containing a trailing newline", ->
+        text = "first\n"
+        document = new TextDocument(text)
+        expect(document.getLineCount()).toBe 2
+        expect(document.getText()).toBe text
+        expect(document.lineForRow(0)).toBe 'first'
+        expect(document.lineEndingForRow(0)).toBe '\n'
+        expect(document.lineForRow(1)).toBe ''
+        expect(document.lineEndingForRow(1)).toBe ''
+
+    describe "when a file path is given", ->
+      afterEach ->
+        document?.destroy()
+
+      describe "when a file exists for the path", ->
+        it "loads the contents of that file", ->
+          filePath = require.resolve('./fixtures/sample.js')
+          document = new TextDocument({filePath, load: true})
+
+          expect(document.loaded).toBe false
+          waitsFor -> document.loaded
+          runs ->
+            expect(document.getText()).toBe fs.readFileSync(filePath, 'utf8')
+
+      describe "when no file exists for the path", ->
+        it "is not modified and is initially empty", ->
+          filePath = "does-not-exist.txt"
+          expect(fs.existsSync(filePath)).toBeFalsy()
+          document = new TextDocument({filePath, load: true})
+          expect(document.isModified()).not.toBeTruthy()
+          expect(document.getText()).toBe ''
 
   describe "::clipPosition(position)", ->
     it "returns a valid position closest to the given position", ->

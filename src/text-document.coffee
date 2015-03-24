@@ -1,16 +1,34 @@
+fs = require "fs"
 Point = require "./point"
 BufferLayer = require "./buffer-layer"
 StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
 
+LineEnding = /[\r\n]*$/
+
 module.exports =
 class TextDocument
   linesLayer: null
 
-  constructor: (text) ->
+  constructor: (options) ->
+    @encoding = 'utf8'
     @bufferLayer = new BufferLayer(new StringLayer(""))
-    @setText(text) if text?
+    if typeof options is 'string'
+      @setText(options)
+    else if options?.filePath?
+      @setPath(options.filePath, options.load)
+      @load() if options.load
+
+  destroy: ->
+
+  setPath: (@path) ->
+    @loaded = false
+
+  load: ->
+    fs.readFile @path, @encoding, (err, contents) =>
+      @loaded = true
+      @setText(contents)
 
   getText: ->
     @getLinesLayer().slice()
@@ -18,18 +36,21 @@ class TextDocument
   setText: (text) ->
     @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
 
+  isModified: ->
+    false
+
   getLineCount: ->
     @getLinesLayer().getExtent().row + 1
 
   lineForRow: (row) ->
     @getLinesLayer()
       .slice(Point(row, 0), Point(row + 1, 0))
-      .replace(/\s*$/, "")
+      .replace(LineEnding, "")
 
   lineEndingForRow: (row) ->
     @getLinesLayer()
       .slice(Point(row, 0), Point(row + 1, 0))
-      .match(/\s*$/, "")[0]
+      .match(LineEnding, "")[0]
 
   clipPosition: (position) ->
     position = Point.fromObject(position)
