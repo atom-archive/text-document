@@ -24,15 +24,6 @@ describe "BufferLayer", ->
       expect(buffer.slice()).toBe "abcdefghijkl"
       expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
 
-  describe "::splice(start, extent, content)", ->
-    it "replaces the extent at the given position with the given content", ->
-      source = new SpyLayer("abcdefghijkl", 3)
-      buffer = new BufferLayer(source)
-
-      buffer.splice(Point(0, 2), Point(0, 3), "123")
-
-      expect(buffer.slice()).toBe "ab123fghijkl"
-
   describe "iteration", ->
     it "returns an iterator into the buffer", ->
       source = new SpyLayer("abcdefghijkl", 3)
@@ -83,34 +74,3 @@ describe "BufferLayer", ->
 
       expect(buffer.slice(Point(0, 0), Point(0, 6))).toBe "abcdef"
       expect(source.getRecordedReads()).toEqual ["abc"]
-
-  describe "randomized mutations", ->
-    it "behaves as if it were reading and writing directly to the underlying layer", ->
-      for i in [0..30] by 1
-        seed = Date.now()
-        # seed = 1426552034823
-        random = new Random(seed)
-
-        oldContent = "abcdefghijklmnopqrstuvwxyz"
-        source = new StringLayer(oldContent)
-        buffer = new BufferLayer(source)
-        reference = new StringLayer(oldContent)
-
-        for j in [0..10] by 1
-          currentContent = buffer.slice()
-          newContentLength = random(20)
-          newContent = (oldContent[random(26)] for k in [0..newContentLength]).join("").toUpperCase()
-
-          startColumn = random(currentContent.length)
-          endColumn = random.intBetween(startColumn, currentContent.length)
-          start = Point(0, startColumn)
-          extent = Point(0, endColumn - startColumn)
-
-          # console.log buffer.slice()
-          # console.log "buffer.splice(#{start}, #{extent}, #{newContent})"
-
-          reference.splice(start, extent, newContent)
-          buffer.splice(start, extent, newContent)
-
-          expect(buffer.slice()).toBe(reference.slice(), "Seed: #{seed}, Iteration: #{j}")
-          return unless buffer.slice() is reference.slice()
