@@ -64,7 +64,3 @@ class Iterator
 
   getPosition: ->
     @position.copy()
-
-  splice: (extent, content) ->
-    @regionMapIterator.seek(@position)
-    @regionMapIterator.splice(extent, content)

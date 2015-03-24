@@ -1,6 +1,7 @@
 fs = require "fs"
 Point = require "./point"
 BufferLayer = require "./buffer-layer"
+MutationLayer = require "./mutation-layer"
 StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
@@ -13,7 +14,7 @@ class TextDocument
 
   constructor: (options) ->
     @encoding = 'utf8'
-    @bufferLayer = new BufferLayer(new StringLayer(""))
+    @mutationLayer = new MutationLayer(new BufferLayer(new StringLayer("")))
     if typeof options is 'string'
       @setText(options)
     else if options?.filePath?
@@ -34,7 +35,7 @@ class TextDocument
     @getLinesLayer().slice()
 
   setText: (text) ->
-    @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
+    @mutationLayer.splice(Point.zero(), @mutationLayer.getExtent(), text)
 
   isModified: ->
     false
@@ -63,4 +64,4 @@ class TextDocument
     @getLinesLayer().toSourcePosition(Point.fromObject(position)).column
 
   getLinesLayer: ->
-    @linesLayer ?= new TransformLayer(@bufferLayer, new LinesTransform)
+    @linesLayer ?= new TransformLayer(@mutationLayer, new LinesTransform)
