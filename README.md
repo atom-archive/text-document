@@ -8,7 +8,7 @@ This library will replace TextBuffer, TokenizedBuffer, and DisplayBuffer in Atom
 
 This class will be a drop-in replacement `TextBuffer` and implement its API. We should build our tests by example (or outright copying) from TextBuffer, cleaning up their structure but leaving the API otherwise intact.
 
-Instances will house a `BufferLayer`, a `MutationLayer`, and a `TransformLayer` based on `LinesTransform`, which they will use as primitives to expose their API. The `BufferLayer` will store a read-only portion of the file being edited in memory for fast access, referencing a temporary copy of the file on disk for content exceeding what we're willing to store. The `MutableLayer` stores changes to the file since the last time it was opened/saved. The lines transform layer stores the mapping from two dimensions (rows/columns) to one dimension (character offsets in the file).
+Instances will house a `BufferLayer` and a `TransformLayer` based on `LinesTransform`, which they will use as primitives to expose their API. The `BufferLayer` will store a read-only portion of the file being edited in memory for fast access, referencing a temporary copy of the file on disk for content exceeding what we're willing to store. The lines transform layer stores the mapping from two dimensions (rows/columns) to one dimension (character offsets in the file).
 
 ### ScopedTextDocument
 
@@ -34,17 +34,13 @@ This is the lowest layer, managing interaction with the file system. Its iterato
 
 This layer builds on `FileLayer`, storing a portion of the file in memory based on the active region. When the active region changes, this layer flushes and loads content from the layer below accordingly. This layer can also be used above specific transform layers to cache their content. If used in this capacity, it will need to handle change events from the underlying layer.
 
-### MutationLayer
-
-This layer stores changes to the document since the last load or save. It uses a `Patch`, discussed below, to record which regions of the buffer have been replaced by new content, and what that new content is. When the document is saved, this layer combines its stored changes with unchanged content from regions in the `BufferLayer` below to produce an output stream that is atomically written to the file system. This layer emits change events when mutations occur that can be processed by layers above it.
-
 ### TransformLayer
 
 Transform layers can be instantiated with different transform implementations to implement things like tab expansion and soft wrap. They also store a region map which indexes the spatial correspondence between source and target coordinates. In addition to performing transforms in an initial streaming fashion, transform layers also transform and re-emit change events from the layer below.
 
 ### Patch
 
-This class indexes the spatial correspondence between two layers. Each transform layer uses a region map to efficiently translate positions between its source and target coordinate spaces. It is also used by the `BufferLayer` to store in-memory content and the `MutationLayer` to store changes to content.
+This class indexes the spatial correspondence between two layers. Each transform layer uses a region map to efficiently translate positions between its source and target coordinate spaces. It is also used by the `BufferLayer` to store in-memory content.
 
 It's currently implemented as an array of *regions*, with each region having a *source extent*, *target extent*, and *content*. To find a source position corresponding to a target position or vice versa, we simply traverse the array, maintaining the total distance traversed in either dimension. To make this class efficient, this linear data structure will need to be replaced with a tree, possibly a counted B+ tree or some persistent equivalent.
 
@@ -56,8 +52,7 @@ Layers will also maintain a marker index. By implementing this index as a counte
 
 The basic structure is in place, but there's still a lot to be done.
 
-* [ ] Extract `MutationLayer` out of `BufferLayer`
-* [ ] Implement position translation between layers
+* [x] Implement position translation between layers
 * [ ] Index position translation in `TransformLayer` using a `Patch`. The `Patch` API will need to be extended a bit to achieve this.
 * [ ] Implement marker API based on an efficient index
 * [ ] Implement `ScopedTextDocument` and create a `TextContent` data type that can intersperse scope start and end tags with strings of normal content.
