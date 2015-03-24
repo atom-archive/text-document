@@ -7,6 +7,38 @@ describe "TextDocument", ->
   beforeEach ->
     document = new TextDocument
 
+  describe "construction", ->
+    it "can be constructed empty", ->
+      document = new TextDocument
+      expect(document.getLineCount()).toBe 1
+      expect(document.getText()).toBe ''
+      expect(document.lineForRow(0)).toBe ''
+      expect(document.lineEndingForRow(0)).toBe ''
+
+    it "can be constructed with initial text containing no trailing newline", ->
+      text = "hello\nworld\r\nhow are you doing?\rlast"
+      document = new TextDocument(text)
+      expect(document.getLineCount()).toBe 4
+      expect(document.getText()).toBe text
+      expect(document.lineForRow(0)).toBe 'hello'
+      expect(document.lineEndingForRow(0)).toBe '\n'
+      expect(document.lineForRow(1)).toBe 'world'
+      expect(document.lineEndingForRow(1)).toBe '\r\n'
+      expect(document.lineForRow(2)).toBe 'how are you doing?'
+      expect(document.lineEndingForRow(2)).toBe '\r'
+      expect(document.lineForRow(3)).toBe 'last'
+      expect(document.lineEndingForRow(3)).toBe ''
+
+    it "can be constructed with initial text containing a trailing newline", ->
+      text = "first\n"
+      document = new TextDocument(text)
+      expect(document.getLineCount()).toBe 2
+      expect(document.getText()).toBe text
+      expect(document.lineForRow(0)).toBe 'first'
+      expect(document.lineEndingForRow(0)).toBe '\n'
+      expect(document.lineForRow(1)).toBe ''
+      expect(document.lineEndingForRow(1)).toBe ''
+
   describe "::clipPosition(position)", ->
     it "returns a valid position closest to the given position", ->
       document = new TextDocument
