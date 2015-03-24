@@ -6,12 +6,12 @@ module.exports =
 class BufferLayer extends Layer
   constructor: (@source) ->
     super
-    @bufferedContent = new Patch
+    @patch = new Patch
     @activeRegionStart = null
     @activeRegionEnd = null
 
   buildIterator: ->
-    new Iterator(this, @source.buildIterator(), @bufferedContent.buildIterator())
+    new Iterator(this, @source.buildIterator(), @patch.buildIterator())
 
   setActiveRegion: (start, end) ->
     @activeRegionStart = start
