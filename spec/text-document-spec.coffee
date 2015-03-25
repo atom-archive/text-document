@@ -46,22 +46,24 @@ describe "TextDocument", ->
         document?.destroy()
 
       describe "when a file exists for the path", ->
-        it "loads the contents of that file", ->
+        it "loads the contents of that file", (done) ->
           filePath = require.resolve('./fixtures/sample.js')
           document = new TextDocument({filePath, load: true})
 
           expect(document.loaded).toBe false
-          waitsFor -> document.loaded
-          runs ->
+          document.onDidLoad ->
             expect(document.getText()).toBe fs.readFileSync(filePath, 'utf8')
+            done()
 
       describe "when no file exists for the path", ->
-        it "is not modified and is initially empty", ->
+        it "is not modified and is initially empty", (done) ->
           filePath = "does-not-exist.txt"
           expect(fs.existsSync(filePath)).toBeFalsy()
           document = new TextDocument({filePath, load: true})
-          expect(document.isModified()).not.toBeTruthy()
-          expect(document.getText()).toBe ''
+          document.onDidLoad ->
+            expect(document.isModified()).not.toBeTruthy()
+            expect(document.getText()).toBe ''
+            done()
 
   describe "::clipPosition(position)", ->
     it "returns a valid position closest to the given position", ->
