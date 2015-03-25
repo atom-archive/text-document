@@ -1,4 +1,5 @@
 fs = require "fs"
+{Emitter} = require "event-kit"
 Point = require "./point"
 BufferLayer = require "./buffer-layer"
 StringLayer = require "./string-layer"
@@ -12,6 +13,7 @@ class TextDocument
   linesLayer: null
 
   constructor: (options) ->
+    @emitter = new Emitter
     @encoding = 'utf8'
     @bufferLayer = new BufferLayer(new StringLayer(""))
     if typeof options is 'string'
@@ -28,7 +30,11 @@ class TextDocument
   load: ->
     fs.readFile @path, @encoding, (err, contents) =>
       @loaded = true
-      @setText(contents)
+      @setText(contents) if contents
+      @emitter.emit("did-load")
+
+  onDidLoad: (fn) ->
+    @emitter.on("did-load", fn)
 
   getText: ->
     @getLinesLayer().slice()
