@@ -4,6 +4,8 @@ StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
 {clip} = TransformLayer
 
+{expectMapsSymmetrically, expectMapsToSource} = require './spec-helper'
+
 describe "HardTabsTransform", ->
   layer = null
 

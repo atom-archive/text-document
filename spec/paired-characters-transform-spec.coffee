@@ -3,6 +3,8 @@ PairedCharactersTransform = require "../src/paired-characters-transform"
 StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
 
+{expectMapsSymmetrically} = require "./spec-helper"
+
 describe "PairedCharactersTransform", ->
   layer = null
 

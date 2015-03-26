@@ -4,6 +4,8 @@ StringLayer = require "../src/string-layer"
 SpyLayer = require "./spy-layer"
 TransformLayer = require "../src/transform-layer"
 
+{expectMapsSymmetrically} = require "./spec-helper"
+
 describe "SoftWrapsTransform", ->
   it "inserts a line-break at the end of the last whitespace sequence that starts before the max column", ->
     layer = new TransformLayer(

@@ -4,6 +4,8 @@ StringLayer = require "../src/string-layer"
 TransformLayer = require "../src/transform-layer"
 {clip} = TransformLayer
 
+{expectMapsSymmetrically, expectMapsFromSource} = require "./spec-helper"
+
 describe "LinesTransform", ->
   layer = null
 
