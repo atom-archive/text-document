@@ -32,6 +32,45 @@ class Node
       childStart = childEnd
     return
 
+  findContaining: (start, end) ->
+    # We break this query into subqueries on our children. For any child that
+    # intersects the query range, we ask the child for markers containing the
+    # subset of the query range covered by that child.
+    #
+    # The search is slightly different depending on whether the search range
+    # is empty or not. If the range is empty, we need to query children that
+    # start or end at the point we're searching for and take the union of
+    # the subquery results. Otherwise, we stop searching earlier, at the first
+    # child that contains the end of our search range and take the intersection
+    # of the subquery results.
+    containingIds = null
+    searchRangeEmpty = start.compare(end) is 0
+
+    childStart = Point.zero()
+    for child in @children
+      if searchRangeEmpty
+        break if childStart.compare(end) > 0
+      else
+        break if childStart.compare(end) >= 0
+
+      childEnd = childStart.traverse(child.extent)
+
+      if childEnd.compare(start) > 0 or childEnd.compare(end) >= 0
+        intersectionStart = Point.max(start, childStart)
+        intersectionEnd = Point.min(end, childEnd)
+        childContainingIds = child.findContaining(intersectionStart.traversalFrom(childStart), intersectionEnd.traversalFrom(childStart))
+        if containingIds?
+          if searchRangeEmpty
+            containingIds = setUnion(containingIds, childContainingIds)
+          else
+            containingIds = setIntersection(containingIds, childContainingIds)
+        else
+          containingIds = childContainingIds
+
+      childStart = childEnd
+
+    containingIds
+
   toString: ->
     "<Node #{@extent} [#{@children.join(" ")}]>"
 
@@ -54,6 +93,8 @@ class Leaf
       newLeaves.push(new Leaf(@extent.traversalFrom(end), new Set(@ids))) if @extent.compare(end) > 0
       newLeaves
 
+  findContaining: (start, end) -> @ids
+
   toString: ->
     ids = []
     values = @ids.values()
@@ -70,5 +111,16 @@ class MarkerIndex
     if splitNodes = @rootNode.insert(id, start, end)
       @rootNode = new Node(splitNodes)
 
-  findContaining: (start, end) ->
-    []
+  findContaining: (start, end=start) ->
+    @rootNode.findContaining(start, end)
+
+setIntersection = (a, b) ->
+  intersection = new Set
+  a.forEach (item) -> intersection.add(item) if b.has(item)
+  intersection
+
+setUnion = (a, b) ->
+  union = new Set
+  a.forEach (item) -> union.add(item)
+  b.forEach (item) -> union.add(item)
+  union
