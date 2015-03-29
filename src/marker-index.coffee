@@ -1,5 +1,7 @@
 Point = require "./point"
 
+BRANCHING_FACTOR = 3
+
 class Node
   constructor: (@children) ->
     @extent = Point.zero()
@@ -30,7 +32,10 @@ class Node
         i++
 
       childStart = childEnd
-    return
+
+    if @children.length > BRANCHING_FACTOR
+      splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
+      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
 
   findContaining: (start, end) ->
     # We break this query into subqueries on our children. For any child that
