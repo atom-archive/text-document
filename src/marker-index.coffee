@@ -61,44 +61,14 @@ class Node
       childStart = childStart.traverse(child.extent)
     end
 
-  findContaining: (start, end) ->
-    # We break this query into subqueries on our children. For any child that
-    # intersects the query range, we ask the child for markers containing the
-    # subset of the query range covered by that child.
-    #
-    # The search is slightly different depending on whether the search range
-    # is empty or not. If the range is empty, we need to query children that
-    # start or end at the point we're searching for and take the union of
-    # the subquery results. Otherwise, we stop searching earlier, at the first
-    # child that contains the end of our search range and take the intersection
-    # of the subquery results.
-    containingIds = null
-    searchRangeEmpty = start.compare(end) is 0
-
+  findContaining: (point, set) ->
     childStart = Point.zero()
     for child in @children
-      if searchRangeEmpty
-        break if childStart.compare(end) > 0
-      else
-        break if childStart.compare(end) >= 0
-
       childEnd = childStart.traverse(child.extent)
-
-      if childEnd.compare(start) > 0 or childEnd.compare(end) >= 0
-        intersectionStart = Point.max(start, childStart)
-        intersectionEnd = Point.min(end, childEnd)
-        childContainingIds = child.findContaining(intersectionStart.traversalFrom(childStart), intersectionEnd.traversalFrom(childStart))
-        if containingIds?
-          if searchRangeEmpty
-            containingIds = setUnion(containingIds, childContainingIds)
-          else
-            containingIds = setIntersection(containingIds, childContainingIds)
-        else
-          containingIds = childContainingIds
-
+      if point.compare(childStart) >= 0 and point.compare(childEnd) <= 0
+        child.findContaining(point.traversalFrom(childStart), set)
+      break if childEnd.compare(point) > 0
       childStart = childEnd
-
-    containingIds
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -134,7 +104,8 @@ class Leaf
   getEnd: (id) ->
     @extent if @ids.has(id)
 
-  findContaining: (start, end) -> @ids
+  findContaining: (point, set) ->
+    @ids.forEach (id) -> set.add(id)
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -165,16 +136,16 @@ class MarkerIndex
   getEnd: (id) ->
     @rootNode.getEnd(id)
 
-  findContaining: (start, end=start) ->
-    new Set(@rootNode.findContaining(start, end))
+  findContaining: (start, end) ->
+    containing = new Set
+    @rootNode.findContaining(start, containing)
+    if end? and end.compare(start) isnt 0
+      containingEnd = new Set
+      @rootNode.findContaining(end, containingEnd)
+      containing.forEach (id) -> containing.delete(id) unless containingEnd.has(id)
+    containing
 
-setIntersection = (a, b) ->
+intersectSets = (a, b) ->
   intersection = new Set
   a.forEach (item) -> intersection.add(item) if b.has(item)
   intersection
-
-setUnion = (a, b) ->
-  union = new Set
-  a.forEach (item) -> union.add(item)
-  b.forEach (item) -> union.add(item)
-  union
