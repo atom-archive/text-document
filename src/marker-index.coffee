@@ -13,15 +13,18 @@ class Node
     # Insert the given id into all children that intersect the given range.
     # Take the intersection of the given range and the child's range when
     # inserting into each child.
+    rangeIsEmpty = start.compare(end) is 0
     childStart = Point.zero()
     i = 0
     while i < @children.length
-      break if childStart.compare(end) > 0
-
       child = @children[i]
       childEnd = childStart.traverse(child.extent)
+      if rangeIsEmpty
+        childIntersectsRange = childEnd.compare(start) >= 0
+      else
+        childIntersectsRange = childEnd.compare(start) > 0
 
-      if childEnd.compare(start) > 0
+      if childIntersectsRange
         intersectionStart = Point.max(start, childStart)
         intersectionEnd = Point.min(end, childEnd)
         if newChildren = child.insert(id, intersectionStart.traversalFrom(childStart), intersectionEnd.traversalFrom(childStart))
@@ -31,6 +34,8 @@ class Node
           i++
       else
         i++
+
+      break if childEnd.compare(end) >= 0
 
       childStart = childEnd
 
@@ -95,8 +100,14 @@ class Node
 
     containingIds
 
-  toString: ->
-    "<Node #{@extent} [#{@children.join(" ")}]>"
+  toString: (indentLevel=0) ->
+    indent = ""
+    indent += " " for i in [0...indentLevel] by 1
+
+    """
+      #{indent}Node #{@extent}
+      #{@children.map((c) -> c.toString(indentLevel + 2)).join("\n")}
+    """
 
 class Leaf
   constructor: (@extent, @ids) ->
@@ -107,7 +118,7 @@ class Leaf
     # adding the id to the portion of this leaf that intersects the given range.
     if start.isZero() and end.compare(@extent) is 0
       @ids.add(id)
-      this
+      return
     else
       newIds = new Set(@ids)
       newIds.add(id)
@@ -125,12 +136,16 @@ class Leaf
 
   findContaining: (start, end) -> @ids
 
-  toString: ->
+  toString: (indentLevel=0) ->
+    indent = ""
+    indent += " " for i in [0...indentLevel] by 1
+
     ids = []
     values = @ids.values()
     until (next = values.next()).done
       ids.push(next.value)
-    "<Leaf #{@extent} (#{ids.join(" ")})>"
+
+    "#{indent}Leaf #{@extent} (#{ids.join(" ")})"
 
 module.exports =
 class MarkerIndex
