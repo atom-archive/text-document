@@ -1,4 +1,5 @@
 Point = require "./point"
+Range = require "./range"
 
 BRANCHING_FACTOR = 3
 
@@ -36,6 +37,24 @@ class Node
     if @children.length > BRANCHING_FACTOR
       splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
       [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+
+  getStart: (id) ->
+    childStart = Point.zero()
+    for child in @children
+      if startRelativeToChild = child.getStart(id)
+        return childStart.traverse(startRelativeToChild)
+      childStart = childStart.traverse(child.extent)
+    return
+
+  getEnd: (id) ->
+    childStart = Point.zero()
+    for child in @children
+      if endRelativeToChild = child.getEnd(id)
+        end = childStart.traverse(endRelativeToChild)
+      else if end?
+        break
+      childStart = childStart.traverse(child.extent)
+    end
 
   findContaining: (start, end) ->
     # We break this query into subqueries on our children. For any child that
@@ -98,6 +117,12 @@ class Leaf
       newLeaves.push(new Leaf(@extent.traversalFrom(end), new Set(@ids))) if @extent.compare(end) > 0
       newLeaves
 
+  getStart: (id) ->
+    Point.zero() if @ids.has(id)
+
+  getEnd: (id) ->
+    @extent if @ids.has(id)
+
   findContaining: (start, end) -> @ids
 
   toString: ->
@@ -115,6 +140,15 @@ class MarkerIndex
   insert: (id, start, end) ->
     if splitNodes = @rootNode.insert(id, start, end)
       @rootNode = new Node(splitNodes)
+
+  getRange: (id) ->
+    Range(@getStart(id), @getEnd(id))
+
+  getStart: (id) ->
+    @rootNode.getStart(id)
+
+  getEnd: (id) ->
+    @rootNode.getEnd(id)
 
   findContaining: (start, end=start) ->
     new Set(@rootNode.findContaining(start, end))

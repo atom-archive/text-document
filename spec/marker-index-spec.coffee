@@ -10,6 +10,16 @@ fdescribe "MarkerIndex", ->
   beforeEach ->
     markerIndex = new MarkerIndex
 
+  describe "::getRange(id)", ->
+    it "returns the range for the given marker id", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 4))
+
+      expect(markerIndex.getRange("a")).toEqual Range(Point(0, 2), Point(0, 5))
+      expect(markerIndex.getRange("b")).toEqual Range(Point(0, 3), Point(0, 7))
+      expect(markerIndex.getRange("c")).toEqual Range(Point(0, 4), Point(0, 4))
+
   describe "::findContaining(range)", ->
     it "returns the markers whose ranges contain the given range", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
