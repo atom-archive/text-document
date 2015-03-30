@@ -117,7 +117,7 @@ class MarkerIndex
       @rootNode = new Node(splitNodes)
 
   findContaining: (start, end=start) ->
-    @rootNode.findContaining(start, end)
+    new Set(@rootNode.findContaining(start, end))
 
 setIntersection = (a, b) ->
   intersection = new Set
