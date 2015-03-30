@@ -4,7 +4,7 @@ MarkerIndex = require "../src/marker-index"
 
 {expectSet} = require "./spec-helper"
 
-fdescribe "MarkerIndex", ->
+describe "MarkerIndex", ->
   markerIndex = null
 
   beforeEach ->
