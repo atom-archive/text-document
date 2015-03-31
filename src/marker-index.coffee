@@ -62,23 +62,21 @@ class Node
   splice: (position, oldExtent, newExtent) ->
     childStart = Point.zero()
     for child in @children
-      childExtent = child.extent
-      childEnd = childStart.traverse(childExtent)
+      childEnd = childStart.traverse(child.extent)
 
-      if adjustment?
-        break unless adjustment.isPositive()
-        childAdjustment = Point.min(adjustment, childExtent)
-        child.splice(Point.zero(), childAdjustment, Point.zero())
-        @extent = @extent.traverse(child.extent.traversalFrom(childExtent))
-        adjustment = adjustment.traversalFrom(childAdjustment)
-        continue
+      if remainderToDelete?
+        break unless remainderToDelete.isPositive()
+        remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
 
-      if childEnd.compare(position) > 0
-        adjustment = child.splice(position.traversalFrom(childStart), oldExtent, newExtent)
-        @extent = @extent.traverse(child.extent.traversalFrom(childExtent))
+      else if childEnd.compare(position) > 0
+        remainderToDelete = child.splice(position.traversalFrom(childStart), oldExtent, newExtent)
 
       childStart = childEnd
-    adjustment
+
+    @extent = @extent
+      .traverse(newExtent.traversalFrom(oldExtent))
+      .traverse(remainderToDelete)
+    remainderToDelete
 
   shouldMergeWith: (other) ->
     @children.length + other.children.length <= BRANCHING_FACTOR
@@ -151,16 +149,25 @@ class Leaf
   delete: (id) ->
     @ids.delete(id)
 
-  splice: (position, oldExtent, newExtent) ->
-    changeEnd = position.traverse(newExtent)
-    totalDelta = newExtent.traversalFrom(oldExtent)
-    if changeEnd.compare(@extent) > 0
-      adjustment = changeEnd.traversalFrom(@extent).traversalFrom(totalDelta)
-      @extent = changeEnd
+  splice: (position, spliceOldExtent, spliceNewExtent) ->
+    myOldExtent = @extent
+    spliceOldEnd = position.traverse(spliceOldExtent)
+    spliceNewEnd = position.traverse(spliceNewExtent)
+    spliceDelta = spliceNewExtent.traversalFrom(spliceOldExtent)
+
+    if spliceOldEnd.compare(@extent) > 0
+      # If the splice ends after this leaf node, this leaf should end at
+      # the end of the splice.
+      @extent = spliceNewEnd
     else
-      adjustment = Point.zero()
-      @extent = @extent.traverse(totalDelta)
-    adjustment
+      # Otherwise, this leaf contains the splice, its size should be adjusted
+      # by the delta.
+      @extent = Point.max(Point.zero(), @extent.traverse(spliceDelta))
+
+    # How does the splice to this leaf's extent compare to the global splice in
+    # the tree's extent implied by the splice? If this leaf grew too much or didn't
+    # shrink enough, we may need to shrink subsequent leaves.
+    @extent.traversalFrom(myOldExtent).traversalFrom(spliceDelta)
 
   shouldMergeWith: (other) ->
     setEqual(@ids, other.ids)
