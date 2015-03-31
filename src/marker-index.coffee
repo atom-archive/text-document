@@ -1,6 +1,7 @@
 Point = require "./point"
 Range = require "./range"
 
+SPLICING = Symbol("SPLICING")
 BRANCHING_FACTOR = 3
 
 class Node
@@ -9,9 +10,9 @@ class Node
     @extent = Point.zero()
     for child in @children
       @extent = @extent.traverse(child.extent)
-      child.ids.forEach (id) => @ids.add(id)
+      addAllToSet(@ids, child.ids)
 
-  insert: (id, start, end) ->
+  insert: (ids, start, end, splicing) ->
     # Insert the given id into all children that intersect the given range.
     # Take the intersection of the given range and the child's range when
     # inserting into each child.
@@ -29,7 +30,7 @@ class Node
       if childIntersectsRange
         intersectionStart = Point.max(start, childStart)
         intersectionEnd = Point.min(end, childEnd)
-        if newChildren = child.insert(id, intersectionStart.traversalFrom(childStart), intersectionEnd.traversalFrom(childStart))
+        if newChildren = child.insert(ids, intersectionStart.traversalFrom(childStart), intersectionEnd.traversalFrom(childStart), splicing)
           @children.splice(i, 1, newChildren...)
           i += newChildren.length
         else
@@ -45,7 +46,7 @@ class Node
       splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
       [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
     else
-      @ids.add(id)
+      addAllToSet(@ids, ids)
       return
 
   delete: (id) ->
@@ -59,16 +60,22 @@ class Node
         else
           i++
 
+  hasEmptyRightmostLeaf: ->
+    @children[@children.length - 1].hasEmptyRightmostLeaf()
+
   splice: (position, oldExtent, newExtent) ->
     childStart = Point.zero()
+    oldExtentEmpty = oldExtent.isZero()
     for child in @children
       childEnd = childStart.traverse(child.extent)
 
       if remainderToDelete?
         break unless remainderToDelete.isPositive()
         remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
+        continue
 
-      else if childEnd.compare(position) > 0
+      comparison = childEnd.compare(position)
+      if comparison > 0 or (comparison is 0 and oldExtentEmpty and child.hasEmptyRightmostLeaf())
         remainderToDelete = child.splice(position.traversalFrom(childStart), oldExtent, newExtent)
 
       childStart = childEnd
@@ -130,16 +137,19 @@ class Node
 class Leaf
   constructor: (@extent, @ids) ->
 
-  insert: (id, start, end) ->
+  insert: (ids, start, end, splicing) ->
+    if splicing and start.isPositive() and start.compare(@extent) < 0
+      return
+
     # If the given range matches the start and end of this leaf exactly, add
     # the given id to this leaf. Otherwise, split this leaf into up to 3 leaves,
     # adding the id to the portion of this leaf that intersects the given range.
     if start.isZero() and end.compare(@extent) is 0
-      @ids.add(id)
+      addAllToSet(@ids, ids)
       return
     else
       newIds = new Set(@ids)
-      newIds.add(id)
+      addAllToSet(newIds, ids)
       newLeaves = []
       newLeaves.push(new Leaf(start, new Set(@ids))) if start.isPositive()
       newLeaves.push(new Leaf(end.traversalFrom(start), newIds))
@@ -181,6 +191,9 @@ class Leaf
   getEnd: (id) ->
     @extent if @ids.has(id)
 
+  hasEmptyRightmostLeaf: ->
+    @extent.isZero()
+
   findContaining: (point, set) ->
     @ids.forEach (id) -> set.add(id)
 
@@ -201,13 +214,17 @@ class MarkerIndex
     @rootNode = new Leaf(Point.infinity(), new Set)
 
   insert: (id, start, end) ->
-    if splitNodes = @rootNode.insert(id, start, end)
+    ids = new Set
+    ids.add(id) if id isnt SPLICING
+    @rootNode.findContaining(start, ids) if start.compare(end) is 0
+    if splitNodes = @rootNode.insert(ids, start, end, id is SPLICING)
       @rootNode = new Node(splitNodes)
 
   delete: (id) ->
     @rootNode.delete(id)
 
   splice: (position, oldExtent, newExtent) ->
+    @insert(SPLICING, position, position) if oldExtent.isZero()
     @rootNode.splice(position, oldExtent, newExtent)
 
   getRange: (id) ->
@@ -235,3 +252,6 @@ setEqual = (a, b) ->
   until (next = iterator.next()).done
     return false unless b.has(next.value)
   true
+
+addAllToSet = (set, valuesToAdd) ->
+  valuesToAdd.forEach (value) -> set.add(value)
