@@ -26,6 +26,16 @@ describe "MarkerIndex", ->
       expect(markerIndex.getRange("d")).toEqual Range(Point(0, 0), Point(0, 0))
       expect(markerIndex.getRange("e")).toEqual Range(Point(0, 0), Point(0, 0))
 
+      markerIndex.delete("e")
+      markerIndex.delete("c")
+      markerIndex.delete("a")
+
+      expect(markerIndex.getRange("a")).toBeUndefined()
+      expect(markerIndex.getRange("b")).toEqual Range(Point(0, 3), Point(0, 7))
+      expect(markerIndex.getRange("c")).toBeUndefined()
+      expect(markerIndex.getRange("d")).toEqual Range(Point(0, 0), Point(0, 0))
+      expect(markerIndex.getRange("e")).toBeUndefined()
+
   describe "::findContaining(range)", ->
     it "returns the markers whose ranges contain the given range", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))

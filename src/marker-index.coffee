@@ -48,6 +48,12 @@ class Node
       @ids.add(id)
       return
 
+  delete: (id) ->
+    if @ids.has(id)
+      @ids.delete(id)
+      for child in @children
+        child.delete(id)
+
   getStart: (id) ->
     return unless @ids.has(id)
     childStart = Point.zero()
@@ -110,6 +116,9 @@ class Leaf
       newLeaves.push(new Leaf(@extent.traversalFrom(end), new Set(@ids))) if @extent.compare(end) > 0
       newLeaves
 
+  delete: (id) ->
+    @ids.delete(id)
+
   getStart: (id) ->
     Point.zero() if @ids.has(id)
 
@@ -139,8 +148,12 @@ class MarkerIndex
     if splitNodes = @rootNode.insert(id, start, end)
       @rootNode = new Node(splitNodes)
 
+  delete: (id) ->
+    @rootNode.delete(id)
+
   getRange: (id) ->
-    Range(@getStart(id), @getEnd(id))
+    if start = @getStart(id)
+      Range(start, @getEnd(id))
 
   getStart: (id) ->
     @rootNode.getStart(id)
