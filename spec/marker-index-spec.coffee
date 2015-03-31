@@ -54,6 +54,40 @@ describe "MarkerIndex", ->
       expect(markerIndex.findContaining(Point(0, 5))).toEqualSet ["a", "b"]
       expect(markerIndex.findContaining(Point(0, 7))).toEqualSet ["b"]
 
+  describe "::splice(position, oldExtent, newExtent)", ->
+    describe "when the change replaces an existing range", ->
+      it "updates markers based on the change", ->
+        markerIndex.insert("preceding", Point(0, 3), Point(0, 4))
+        markerIndex.insert("ending-at-start", Point(0, 3), Point(0, 5))
+        markerIndex.insert("overlapping-start", Point(0, 4), Point(0, 6))
+        markerIndex.insert("surrounding", Point(0, 4), Point(0, 9))
+        markerIndex.insert("overlapping-end", Point(0, 6), Point(0, 9))
+        markerIndex.insert("following", Point(0, 7), Point(0, 9))
+
+        markerIndex.splice(Point(0, 5), Point(0, 2), Point(0, 3))
+
+        # Markers that preceded the change do not move.
+        expect(markerIndex.getRange("preceding")).toEqual Range(Point(0, 3), Point(0, 4))
+
+        # Markers that ended at the start of the change do not move.
+        expect(markerIndex.getRange("ending-at-start")).toEqual Range(Point(0, 3), Point(0, 5))
+
+        # Markers that overlapped the start of the change maintain their start
+        # position, and now end at the end of the change.
+        expect(markerIndex.getRange("overlapping-start")).toEqual Range(Point(0, 4), Point(0, 8))
+
+        # Markers that surrounded the change maintain their start position and
+        # their logical end position.
+        expect(markerIndex.getRange("surrounding")).toEqual Range(Point(0, 4), Point(0, 10))
+
+        # Markers that overlapped the end of the change now start at the end of
+        # the change, and maintain their logical end position.
+        expect(markerIndex.getRange("overlapping-end")).toEqual Range(Point(0, 8), Point(0, 10))
+
+        # Markers that followed the change maintain their logical start and end
+        # positions.
+        expect(markerIndex.getRange("following")).toEqual Range(Point(0, 8), Point(0, 10))
+
   describe "randomized mutations", ->
     [seed, random, markers, idCounter] = []
 

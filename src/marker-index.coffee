@@ -59,6 +59,27 @@ class Node
         else
           i++
 
+  splice: (position, oldExtent, newExtent) ->
+    childStart = Point.zero()
+    for child in @children
+      childExtent = child.extent
+      childEnd = childStart.traverse(childExtent)
+
+      if adjustment?
+        break unless adjustment.isPositive()
+        childAdjustment = Point.min(adjustment, childExtent)
+        child.splice(Point.zero(), childAdjustment, Point.zero())
+        @extent = @extent.traverse(child.extent.traversalFrom(childExtent))
+        adjustment = adjustment.traversalFrom(childAdjustment)
+        continue
+
+      if childEnd.compare(position) > 0
+        adjustment = child.splice(position.traversalFrom(childStart), oldExtent, newExtent)
+        @extent = @extent.traverse(child.extent.traversalFrom(childExtent))
+
+      childStart = childEnd
+    adjustment
+
   shouldMergeWith: (other) ->
     @children.length + other.children.length <= BRANCHING_FACTOR
 
@@ -130,6 +151,17 @@ class Leaf
   delete: (id) ->
     @ids.delete(id)
 
+  splice: (position, oldExtent, newExtent) ->
+    changeEnd = position.traverse(newExtent)
+    totalDelta = newExtent.traversalFrom(oldExtent)
+    if changeEnd.compare(@extent) > 0
+      adjustment = changeEnd.traversalFrom(@extent).traversalFrom(totalDelta)
+      @extent = changeEnd
+    else
+      adjustment = Point.zero()
+      @extent = @extent.traverse(totalDelta)
+    adjustment
+
   shouldMergeWith: (other) ->
     setEqual(@ids, other.ids)
 
@@ -167,6 +199,9 @@ class MarkerIndex
 
   delete: (id) ->
     @rootNode.delete(id)
+
+  splice: (position, oldExtent, newExtent) ->
+    @rootNode.splice(position, oldExtent, newExtent)
 
   getRange: (id) ->
     if start = @getStart(id)
