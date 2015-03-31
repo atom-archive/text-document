@@ -5,9 +5,11 @@ BRANCHING_FACTOR = 3
 
 class Node
   constructor: (@children) ->
+    @ids = new Set
     @extent = Point.zero()
     for child in @children
       @extent = @extent.traverse(child.extent)
+      child.ids.forEach (id) => @ids.add(id)
 
   insert: (id, start, end) ->
     # Insert the given id into all children that intersect the given range.
@@ -42,8 +44,12 @@ class Node
     if @children.length > BRANCHING_FACTOR
       splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
       [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+    else
+      @ids.add(id)
+      return
 
   getStart: (id) ->
+    return unless @ids.has(id)
     childStart = Point.zero()
     for child in @children
       if startRelativeToChild = child.getStart(id)
@@ -52,6 +58,7 @@ class Node
     return
 
   getEnd: (id) ->
+    return unless @ids.has(id)
     childStart = Point.zero()
     for child in @children
       if endRelativeToChild = child.getEnd(id)
@@ -74,8 +81,13 @@ class Node
     indent = ""
     indent += " " for i in [0...indentLevel] by 1
 
+    ids = []
+    values = @ids.values()
+    until (next = values.next()).done
+      ids.push(next.value)
+
     """
-      #{indent}Node #{@extent}
+      #{indent}Node #{@extent} (#{ids.join(" ")})
       #{@children.map((c) -> c.toString(indentLevel + 2)).join("\n")}
     """
 
