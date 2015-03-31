@@ -66,11 +66,16 @@ describe "MarkerIndex", ->
         markerIndex = new MarkerIndex
 
         for j in [1..10]
-          id = idCounter++
-          [start, end] = getRange()
-          # console.log "#{j}: insert(#{id}, #{start}, #{end})"
-          markerIndex.insert(id, start, end)
-          markers.push({id, start, end})
+          # 80% insert, 20% delete
+          if markers.length is 0 or random(10) > 2
+            id = idCounter++
+            [start, end] = getRange()
+            # console.log "#{j}: insert(#{id}, #{start}, #{end})"
+            markerIndex.insert(id, start, end)
+            markers.push({id, start, end})
+          else
+            [{id}] = markers.splice(random(markers.length - 1), 1)
+            markerIndex.delete(id)
 
           # console.log markerIndex.rootNode.toString()
 

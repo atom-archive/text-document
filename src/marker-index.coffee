@@ -51,8 +51,19 @@ class Node
   delete: (id) ->
     if @ids.has(id)
       @ids.delete(id)
-      for child in @children
-        child.delete(id)
+      i = 0
+      while i < @children.length
+        @children[i].delete(id)
+        if @children[i - 1]?.shouldMergeWith(@children[i])
+          @children.splice(i - 1, 2, @children[i - 1].merge(@children[i]))
+        else
+          i++
+
+  shouldMergeWith: (other) ->
+    @children.length + other.children.length <= BRANCHING_FACTOR
+
+  merge: (other) ->
+    new Node(@children.concat(other.children))
 
   getStart: (id) ->
     return unless @ids.has(id)
@@ -119,6 +130,12 @@ class Leaf
   delete: (id) ->
     @ids.delete(id)
 
+  shouldMergeWith: (other) ->
+    setEqual(@ids, other.ids)
+
+  merge: (other) ->
+    new Leaf(@extent.traverse(other.extent), new Set(@ids))
+
   getStart: (id) ->
     Point.zero() if @ids.has(id)
 
@@ -170,7 +187,9 @@ class MarkerIndex
       containing.forEach (id) -> containing.delete(id) unless containingEnd.has(id)
     containing
 
-intersectSets = (a, b) ->
-  intersection = new Set
-  a.forEach (item) -> intersection.add(item) if b.has(item)
-  intersection
+setEqual = (a, b) ->
+  return false unless a.size is b.size
+  iterator = a.values()
+  until (next = iterator.next()).done
+    return false unless b.has(next.value)
+  true
