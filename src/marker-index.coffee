@@ -115,7 +115,7 @@ class Node
     childStart = Point.zero()
     for child in @children
       childEnd = childStart.traverse(child.extent)
-      if point.compare(childStart) >= 0 and point.compare(childEnd) <= 0
+      if point.compare(childEnd) <= 0
         child.findContaining(point.traversalFrom(childStart), set)
       break if childEnd.compare(point) > 0
       childStart = childEnd
