@@ -5,7 +5,7 @@ Marker = require "./marker"
 MarkerIndex = require "./marker-index"
 
 module.exports =
-class MarkerManager
+class MarkerStore
   constructor: ->
     @index = new MarkerIndex
     @emitter = new Emitter

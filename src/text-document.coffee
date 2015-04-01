@@ -2,7 +2,7 @@ fs = require "fs"
 {Emitter} = require "event-kit"
 Point = require "./point"
 Range = require "./range"
-MarkerManager = require "./marker-manager"
+MarkerStore = require "./marker-store"
 BufferLayer = require "./buffer-layer"
 StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
@@ -19,7 +19,7 @@ class TextDocument
   ###
 
   constructor: (options) ->
-    @markers = new MarkerManager
+    @markerStore = new MarkerStore
     @emitter = new Emitter
     @refcount = 1
     @destroyed = false
@@ -78,7 +78,7 @@ class TextDocument
     @emitter.on("did-update-markers", callback)
 
   onDidCreateMarker: (callback) ->
-    @markers.onDidCreateMarker(callback)
+    @markerStore.onDidCreateMarker(callback)
 
   onDidChangeEncoding: (callback) ->
     @emitter.on("did-change-encoding", callback)
@@ -175,11 +175,11 @@ class TextDocument
   Section: Markers
   ###
 
-  getMarker: (id) -> @markers.getMarker(id)
-  getMarkers: -> @markers.getMarkers()
-  findMarkers: (params) -> @markers.findMarkers(params)
-  markRange: (range, options) -> @markers.markRange(range, options)
-  markPosition: (position, options) -> @markers.markPosition(position, options)
+  getMarker: (id) -> @markerStore.getMarker(id)
+  getMarkers: -> @markerStore.getMarkers()
+  findMarkers: (params) -> @markerStore.findMarkers(params)
+  markRange: (range, options) -> @markerStore.markRange(range, options)
+  markPosition: (position, options) -> @markerStore.markPosition(position, options)
 
   ###
   Section: Buffer Range Details
