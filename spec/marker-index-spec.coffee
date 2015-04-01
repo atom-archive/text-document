@@ -185,7 +185,7 @@ describe "MarkerIndex", ->
         idCounter = 1
         markerIndex = new MarkerIndex
 
-        for j in [1..10]
+        for j in [1..50]
           # 80% insert, 20% delete
 
           if markers.length is 0 or random(10) > 2
