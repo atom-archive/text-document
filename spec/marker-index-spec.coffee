@@ -188,6 +188,7 @@ describe "MarkerIndex", ->
             markers.push({id, start, end})
           else
             [{id}] = markers.splice(random(markers.length - 1), 1)
+            # console.log "#{j}: delete(#{id})"
             markerIndex.delete(id)
 
           # console.log markerIndex.rootNode.toString()
