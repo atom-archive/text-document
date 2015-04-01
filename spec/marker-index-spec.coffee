@@ -54,6 +54,26 @@ describe "MarkerIndex", ->
       expect(markerIndex.findContaining(Point(0, 5))).toEqualSet ["a", "b"]
       expect(markerIndex.findContaining(Point(0, 7))).toEqualSet ["b"]
 
+  describe "::findStartingAt(point)", ->
+    it "returns markers ending at the given point", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 2), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 8))
+
+      expect(markerIndex.findStartingAt(Point(0, 1))).toEqualSet []
+      expect(markerIndex.findStartingAt(Point(0, 2))).toEqualSet ["a", "b"]
+      expect(markerIndex.findStartingAt(Point(0, 4))).toEqualSet ["c"]
+
+  describe "::findEndingAt(point)", ->
+    it "returns markers ending at the given point", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 7))
+
+      expect(markerIndex.findEndingAt(Point(0, 4))).toEqualSet []
+      expect(markerIndex.findEndingAt(Point(0, 5))).toEqualSet ["a"]
+      expect(markerIndex.findEndingAt(Point(0, 7))).toEqualSet ["b", "c"]
+
   describe "::splice(position, oldExtent, newExtent)", ->
     describe "when the change has a non-empty old extent and new extent", ->
       it "updates markers based on the change", ->
@@ -118,14 +138,22 @@ describe "MarkerIndex", ->
           expect(markerIndex.getRange("surrounds-point")).toEqual Range(Point(0, 3), Point(0, 12))
 
       describe "when a non-empty marker starts or ends at the splice position", ->
-        it "treats the change as being inside markers that it intersects", ->
+        it "treats the change as being inside markers that it intersects unless they are exclusive", ->
           markerIndex.insert("starts-at-point", Point(0, 5), Point(0, 8))
           markerIndex.insert("ends-at-point", Point(0, 3), Point(0, 5))
+
+          markerIndex.insert("starts-at-point-exclusive", Point(0, 5), Point(0, 8))
+          markerIndex.insert("ends-at-point-exclusive", Point(0, 3), Point(0, 5))
+
+          markerIndex.setExclusive("starts-at-point-exclusive", true)
+          markerIndex.setExclusive("ends-at-point-exclusive", true)
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
           expect(markerIndex.getRange("starts-at-point")).toEqual Range(Point(0, 5), Point(0, 12))
           expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
+          expect(markerIndex.getRange("starts-at-point-exclusive")).toEqual Range(Point(0, 9), Point(0, 12))
+          expect(markerIndex.getRange("ends-at-point-exclusive")).toEqual Range(Point(0, 3), Point(0, 5))
 
       describe "when there is an empty marker at the splice position", ->
         it "treats the change as being inside markers that it intersects", ->
