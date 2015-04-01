@@ -151,12 +151,12 @@ describe "TextDocument", ->
 
   describe "markers", ->
     describe "::markPosition(position, properties)", ->
-      it "returns a marker for the given position with the given properties", ->
+      it "returns a marker for the given position with the given properties (plus defaults)", ->
         marker = document.markPosition([0, 6], a: '1')
         expect(marker.getRange()).toEqual Range(Point(0, 6), Point(0, 6))
         expect(marker.getHeadPosition()).toEqual Point(0, 6)
         expect(marker.getTailPosition()).toEqual Point(0, 6)
-        expect(marker.getProperties()).toEqual {a: '1'}
+        expect(marker.getProperties()).toEqual {a: '1', invalidate: 'overlap'}
 
         expect(marker.matchesParams({})).toBe true
         expect(marker.matchesParams(a: '1')).toBe true
@@ -182,59 +182,57 @@ describe "TextDocument", ->
         expect(createdMarkers).toEqual([marker])
 
     describe "::markRange(range, properties)", ->
-      it "returns a marker for the given range with the given properties", ->
+      it "returns a marker for the given range with the given properties (plus defaults)", ->
         marker = document.markRange([[0, 6], [1, 7]], a: '1')
         expect(marker.getRange()).toEqual Range(Point(0, 6), Point(1, 7))
         expect(marker.getHeadPosition()).toEqual Point(0, 6)
         expect(marker.getTailPosition()).toEqual Point(1, 7)
-        expect(marker.getProperties()).toEqual {a: '1'}
+        expect(marker.getProperties()).toEqual {a: '1', invalidate: 'overlap'}
 
-    describe "::findMarkers", ->
-      [marker1, marker2, marker3] = []
+    describe "TextBuffer::findMarkers(properties)", ->
+      [marker1, marker2, marker3, marker4] = []
+
+      getIds = (markers) ->
+        markers.map (marker) -> marker.id
 
       beforeEach ->
-        document.setText """
-          one
-          two
-          three
-          four
-        """
+        document.setText("abcdefghijklmnopqrstuvwxyz")
+        marker1 = document.markRange([[0, 0], [0, 3]], class: 'a')
+        marker2 = document.markRange([[0, 0], [0, 5]], class: 'a', invalidate: 'surround')
+        marker3 = document.markRange([[0, 4], [0, 7]], class: 'a')
+        marker4 = document.markRange([[0, 0], [0, 7]], class: 'b', invalidate: 'never')
 
-        marker1 = document.markRange([[1, 1], [3, 3]], a: '1', b: '2')
-        marker2 = document.markRange([[2, 2], [3, 3]], b: '3')
-        marker3 = document.markRange([[2, 2], [4, 4]], a: '2')
+      it "can find markers based on custom properties", ->
+        expect(document.findMarkers(class: 'a')).toEqual [marker2, marker1, marker3]
+        expect(document.findMarkers(class: 'b')).toEqual [marker4]
 
-      it "can find markers with given custom properties", ->
-        expect(document.findMarkers(a: '1')).toEqual([marker1])
-        marker2.setProperties(a: '1')
-        expect(document.findMarkers(a: '1')).toEqual([marker1, marker2])
+      it "can find markers based on their invalidation strategy", ->
+        expect(document.findMarkers(invalidate: 'overlap')).toEqual [marker1, marker3]
+        expect(document.findMarkers(invalidate: 'surround')).toEqual [marker2]
+        expect(document.findMarkers(invalidate: 'never')).toEqual [marker4]
 
-      it "can find markers with a given start position", ->
-        expect(document.findMarkers(startPosition: [0, 0])).toEqual []
-        expect(document.findMarkers(startPosition: [1, 1])).toEqual [marker1]
-        expect(document.findMarkers(startPosition: [2, 2])).toEqual [marker2, marker3]
+      it "can find markers that start or end at a given position", ->
+        expect(document.findMarkers(startPosition: [0, 0])).toEqual [marker4, marker2, marker1]
+        expect(document.findMarkers(startPosition: [0, 0], class: 'a')).toEqual [marker2, marker1]
+        expect(document.findMarkers(startPosition: [0, 0], endPosition: [0, 3], class: 'a')).toEqual [marker1]
+        expect(document.findMarkers(startPosition: [0, 4], endPosition: [0, 7])).toEqual [marker3]
+        expect(document.findMarkers(endPosition: [0, 7])).toEqual [marker4, marker3]
+        expect(document.findMarkers(endPosition: [0, 7], class: 'b')).toEqual [marker4]
 
-      it "can find markers with a given end position", ->
-        expect(document.findMarkers(startPosition: [1, 1], endPosition: [4, 4])).toEqual []
-        expect(document.findMarkers(startPosition: [1, 1], endPosition: [3, 3])).toEqual [marker1]
-        expect(document.findMarkers(startPosition: [2, 2], endPosition: [3, 3])).toEqual [marker2]
+      it "can find markers that contain a given point", ->
+        expect(document.findMarkers(containsPoint: [0, 0])).toEqual [marker4, marker2, marker1]
+        expect(document.findMarkers(containsPoint: [0, 1], class: 'a')).toEqual [marker2, marker1]
+        expect(document.findMarkers(containsPoint: [0, 4])).toEqual [marker4, marker2, marker3]
 
-      it "can find markers that contain a given point, inclusive", ->
-        expect(document.findMarkers(containsPoint: [0, 9])).toEqual []
-        expect(document.findMarkers(containsPoint: [1, 1])).toEqual [marker1]
-        expect(document.findMarkers(containsPoint: [1, Infinity])).toEqual [marker1]
-        expect(document.findMarkers(containsPoint: [1, 5])).toEqual [marker1]
-        expect(document.findMarkers(containsPoint: [3, 0])).toEqual [marker1, marker2, marker3]
+      it "can find markers that contain a given range", ->
+        expect(document.findMarkers(containsRange: [[0, 1], [0, 4]])).toEqual [marker4, marker2]
+        expect(document.findMarkers(containsRange: [[0, 4], [0, 1]])).toEqual [marker4, marker2]
+        expect(document.findMarkers(containsRange: [[0, 1], [0, 3]])).toEqual [marker4, marker2, marker1]
+        expect(document.findMarkers(containsRange: [[0, 6], [0, 7]])).toEqual [marker4, marker3]
 
-      it "can find markers that contain a given range, inclusive", ->
-        expect(document.findMarkers(containsRange: [[1, 0], [1, 3]])).toEqual []
-        expect(document.findMarkers(containsRange: [[1, 0], [1, 3]])).toEqual []
-        expect(document.findMarkers(containsRange: [[1, 2], [1, 5]])).toEqual [marker1]
-        expect(document.findMarkers(containsRange: [[1, 2], [1, Infinity]])).toEqual [marker1]
-        expect(document.findMarkers(containsRange: [[2, 5], [3, 1]])).toEqual [marker1, marker2, marker3]
-
-      it "can find markers with combinations of custom and positional properties", ->
-        expect(document.findMarkers(startPosition: [2, 2], a: '2')).toEqual [marker3]
+      it "can find markers that intersect a given range", ->
+        expect(document.findMarkers(intersectsRange: [[0, 4], [0, 6]])).toEqual [marker4, marker2, marker3]
+        expect(document.findMarkers(intersectsRange: [[0, 0], [0, 2]])).toEqual [marker4, marker2, marker1]
 
     describe "Marker::destroy", ->
       it "removes the marker and calls callbacks registered with ::onDidDestroy", ->
@@ -248,10 +246,10 @@ describe "TextDocument", ->
 
     describe "Marker::setProperties", ->
       it "allows the properties to be retrieved", ->
-        marker = document.markPosition([0, 6], a: '1')
+        marker = document.markPosition([0, 6], a: '1', invalidate: 'never')
         marker.setProperties(b: '2')
 
-        expect(marker.getProperties()).toEqual(a: '1', b: '2')
+        expect(marker.getProperties()).toEqual(a: '1', b: '2', invalidate: 'never')
         expect(document.findMarkers(b: '2')).toEqual [marker]
 
   describe "manipulating text", ->

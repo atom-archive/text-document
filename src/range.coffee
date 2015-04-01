@@ -23,3 +23,13 @@ class Range
 
   isEmpty: ->
     @start.compare(@end) is 0
+
+  compare: (other) ->
+    other = @constructor.fromObject(other)
+    if value = @start.compare(other.start)
+      value
+    else
+      other.end.compare(@end)
+
+  toString: ->
+    "(#{@start}, #{@end})"

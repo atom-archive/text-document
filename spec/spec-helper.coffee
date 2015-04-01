@@ -1,5 +1,8 @@
 require 'coffee-cache'
 
+Marker = require "../src/marker"
+Marker::jasmineToString = -> @toString()
+
 currentSpecResult = null
 jasmine.getEnv().addReporter specStarted: (result) -> currentSpecResult = result
 currentSpecFailed = -> currentSpecResult.failedExpectations.length > 0

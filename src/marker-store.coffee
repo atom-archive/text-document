@@ -45,13 +45,19 @@ class MarkerStore
       intersectSet(markerIds, @index.findContaining(start, end))
       delete params.containsRange
 
+    if params.intersectsRange?
+      {start, end} = Range.fromObject(params.intersectsRange)
+      intersectSet(markerIds, @index.findIntersecting(start, end))
+      delete params.intersectsRange
+
     result = []
     for id, marker of @markersById
       result.push(marker) if markerIds.has(id) and marker.matchesParams(params)
-    result
+    result.sort (marker1, marker2) -> marker1.compare(marker2)
 
   markRange: (range, options={}) ->
     range = Range.fromObject(range)
+    options.invalidate ?= 'overlap'
     marker = new Marker(String(@nextMarkerId++), this, options)
     @markersById[marker.id] = marker
     @index.insert(marker.id, range.start, range.end)

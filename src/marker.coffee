@@ -28,6 +28,9 @@ class Marker
     for key, value of newProperties
       @properties[key] = value
 
+  compare: (other) ->
+    @getRange().compare(other.getRange())
+
   isReversed: -> false
 
   hasTail: -> false
@@ -49,3 +52,6 @@ class Marker
 
   onDidChange: (callback) ->
     @emitter.on("did-change", callback)
+
+  toString: ->
+    "[Marker #{@id}, #{@getRange()}]"
