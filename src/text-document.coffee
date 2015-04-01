@@ -2,7 +2,7 @@ fs = require "fs"
 {Emitter} = require "event-kit"
 Point = require "./point"
 Range = require "./range"
-Marker = require "./marker"
+MarkerManager = require "./marker-manager"
 BufferLayer = require "./buffer-layer"
 StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
@@ -19,8 +19,7 @@ class TextDocument
   ###
 
   constructor: (options) ->
-    @nextMarkerId = 0
-    @markers = []
+    @markers = new MarkerManager
     @emitter = new Emitter
     @refcount = 1
     @destroyed = false
@@ -79,7 +78,7 @@ class TextDocument
     @emitter.on("did-update-markers", callback)
 
   onDidCreateMarker: (callback) ->
-    @emitter.on("did-create-marker", callback)
+    @markers.onDidCreateMarker(callback)
 
   onDidChangeEncoding: (callback) ->
     @emitter.on("did-change-encoding", callback)
@@ -161,7 +160,7 @@ class TextDocument
   lineEndingForRow: (row) ->
     @getLinesLayer()
       .slice(Point(row, 0), Point(row + 1, 0))
-      .match(LineEnding, "")[0]
+      .match(LineEnding)[0]
 
   isEmpty: ->
     @bufferLayer.getExtent().isZero()
@@ -176,20 +175,11 @@ class TextDocument
   Section: Markers
   ###
 
-  getMarker: (id) ->
-    return marker for marker in @markers when marker.id is id
-
-  getMarkers: ->
-    @markers
-
-  findMarkers: (params) ->
-    @markers.filter (marker) -> marker.matchesParams(params)
-
-  markPosition: (position, options) ->
-    marker = new Marker(@nextMarkerId++, new Range(Point.fromObject(position), Point.fromObject(position)), options)
-    @markers.push(marker)
-    @emitter.emit("did-create-marker", marker)
-    marker
+  getMarker: (id) -> @markers.getMarker(id)
+  getMarkers: -> @markers.getMarkers()
+  findMarkers: (params) -> @markers.findMarkers(params)
+  markRange: (range, options) -> @markers.markRange(range, options)
+  markPosition: (position, options) -> @markers.markPosition(position, options)
 
   ###
   Section: Buffer Range Details

@@ -2,14 +2,14 @@
 
 module.exports =
 class Marker
-  constructor: (@id, @range, @properties) ->
+  constructor: (@id, @manager, @properties) ->
     @emitter = new Emitter
 
-  getRange: -> @range
+  getRange: -> @manager.getMarkerRange(@id)
 
-  getHeadPosition: -> @range.start
+  getHeadPosition: -> @manager.getMarkerStartPosition(@id)
 
-  getTailPosition: -> @range.end
+  getTailPosition: -> @manager.getMarkerEndPosition(@id)
 
   setHeadPosition: ->
 
@@ -37,6 +37,8 @@ class Marker
   plantTail: ->
 
   destroy: ->
+    @manager.destroyMarker(@id)
+    @emitter.emit("did-destroy")
 
   ###
   Section: Event Subscription

@@ -150,7 +150,7 @@ describe "TextDocument", ->
         expect(document.positionForCharacterIndex(20)).toEqual Point(3, 5)
 
   describe "markers", ->
-    describe "::markPosition", ->
+    describe "::markPosition(position, properties)", ->
       it "returns a marker for the given position with the given properties", ->
         marker = document.markPosition([0, 6], a: '1')
         expect(marker.getRange()).toEqual Range(Point(0, 6), Point(0, 6))
@@ -161,13 +161,6 @@ describe "TextDocument", ->
         expect(marker.matchesParams({})).toBe true
         expect(marker.matchesParams(a: '1')).toBe true
         expect(marker.matchesParams(a: '2')).toBe false
-
-      it "allows the marker to be retrieved with ::findMarkers(properties)", ->
-        marker1 = document.markPosition([0, 6], a: '1', b: '2')
-        marker2 = document.markPosition([0, 6], a: '1', b: '3')
-        marker3 = document.markPosition([0, 6], a: '2', )
-
-        expect(document.findMarkers(a: '1')).toEqual([marker1, marker2])
 
       it "allows the marker to be retrieved with ::getMarker(id)", ->
         marker1 = document.markPosition([0, 6], a: '1', b: '2')
@@ -187,6 +180,68 @@ describe "TextDocument", ->
 
         marker = document.markPosition([0, 6])
         expect(createdMarkers).toEqual([marker])
+
+    describe "::markRange(range, properties)", ->
+      it "returns a marker for the given range with the given properties", ->
+        marker = document.markRange([[0, 6], [1, 7]], a: '1')
+        expect(marker.getRange()).toEqual Range(Point(0, 6), Point(1, 7))
+        expect(marker.getHeadPosition()).toEqual Point(0, 6)
+        expect(marker.getTailPosition()).toEqual Point(1, 7)
+        expect(marker.getProperties()).toEqual {a: '1'}
+
+    describe "::findMarkers", ->
+      [marker1, marker2, marker3] = []
+
+      beforeEach ->
+        document.setText """
+          one
+          two
+          three
+          four
+        """
+
+        marker1 = document.markRange([[1, 1], [3, 3]], a: '1', b: '2')
+        marker2 = document.markRange([[2, 2], [3, 3]], b: '3')
+        marker3 = document.markRange([[2, 2], [4, 4]], a: '2')
+
+      it "finds markers with given custom properties", ->
+        expect(document.findMarkers(a: '1')).toEqual([marker1])
+        marker2.setProperties(a: '1')
+        expect(document.findMarkers(a: '1')).toEqual([marker1, marker2])
+
+      it "finds markers by with a given start position", ->
+        expect(document.findMarkers(startPosition: [0, 0])).toEqual []
+        expect(document.findMarkers(startPosition: [1, 1])).toEqual [marker1]
+        expect(document.findMarkers(startPosition: [2, 2])).toEqual [marker2, marker3]
+
+      it "finds markers by with a given end position", ->
+        expect(document.findMarkers(startPosition: [1, 1], endPosition: [4, 4])).toEqual []
+        expect(document.findMarkers(startPosition: [1, 1], endPosition: [3, 3])).toEqual [marker1]
+        expect(document.findMarkers(startPosition: [2, 2], endPosition: [3, 3])).toEqual [marker2]
+
+      it "finds markers that contain a given point, inclusive", ->
+        expect(document.findMarkers(containsPoint: [0, 9])).toEqual []
+        expect(document.findMarkers(containsPoint: [1, 1])).toEqual [marker1]
+        expect(document.findMarkers(containsPoint: [1, 5])).toEqual [marker1]
+        expect(document.findMarkers(containsPoint: [3, 0])).toEqual [marker1, marker2, marker3]
+
+      it "finds markers that contain a given range, inclusive", ->
+        expect(document.findMarkers(containsRange: [[1, 0], [1, 3]])).toEqual []
+        expect(document.findMarkers(containsRange: [[1, 2], [1, 5]])).toEqual [marker1]
+        expect(document.findMarkers(containsRange: [[2, 5], [3, 1]])).toEqual [marker1, marker2, marker3]
+
+      it "finds markers with combinations of custom and positional properties", ->
+        expect(document.findMarkers(startPosition: [2, 2], a: '2')).toEqual [marker3]
+
+    describe "Marker::destroy", ->
+      it "removes the marker and calls callbacks registered with ::onDidDestroy", ->
+        marker = document.markPosition([0, 6], a: '1')
+        destroyed = false
+        marker.onDidDestroy -> destroyed = true
+
+        marker.destroy()
+        expect(document.getMarker(marker.id)).toBeUndefined()
+        expect(destroyed).toBe true
 
     describe "Marker::setProperties", ->
       it "allows the properties to be retrieved", ->
