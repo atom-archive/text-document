@@ -19,22 +19,29 @@ describe "MarkerIndex", ->
       markerIndex.insert("c", Point(0, 4), Point(0, 4))
       markerIndex.insert("d", Point(0, 0), Point(0, 0))
       markerIndex.insert("e", Point(0, 0), Point(0, 0))
+      markerIndex.insert("f", Point(0, 3), Point(0, 3))
+      markerIndex.insert("g", Point(0, 3), Point(0, 3))
 
       expect(markerIndex.getRange("a")).toEqual Range(Point(0, 2), Point(0, 5))
       expect(markerIndex.getRange("b")).toEqual Range(Point(0, 3), Point(0, 7))
       expect(markerIndex.getRange("c")).toEqual Range(Point(0, 4), Point(0, 4))
       expect(markerIndex.getRange("d")).toEqual Range(Point(0, 0), Point(0, 0))
       expect(markerIndex.getRange("e")).toEqual Range(Point(0, 0), Point(0, 0))
+      expect(markerIndex.getRange("f")).toEqual Range(Point(0, 3), Point(0, 3))
+      expect(markerIndex.getRange("g")).toEqual Range(Point(0, 3), Point(0, 3))
 
       markerIndex.delete("e")
       markerIndex.delete("c")
       markerIndex.delete("a")
+      markerIndex.delete("f")
 
       expect(markerIndex.getRange("a")).toBeUndefined()
       expect(markerIndex.getRange("b")).toEqual Range(Point(0, 3), Point(0, 7))
       expect(markerIndex.getRange("c")).toBeUndefined()
       expect(markerIndex.getRange("d")).toEqual Range(Point(0, 0), Point(0, 0))
       expect(markerIndex.getRange("e")).toBeUndefined()
+      expect(markerIndex.getRange("f")).toBeUndefined()
+      expect(markerIndex.getRange("g")).toEqual Range(Point(0, 3), Point(0, 3))
 
   describe "::findContaining(range)", ->
     it "returns the markers whose ranges contain the given range", ->

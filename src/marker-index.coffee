@@ -21,10 +21,15 @@ class Node
     while i < @children.length
       child = @children[i]
       childEnd = childStart.traverse(child.extent)
-      if rangeIsEmpty or child.hasEmptyRightmostLeaf()
-        childIntersectsRange = childEnd.compare(start) > 0 or (childEnd.compare(start) is 0 and not @children[i + 1]?.hasEmptyLeftmostLeaf())
-      else
-        childIntersectsRange = childEnd.compare(start) > 0
+      nextChildHasEmptyLeftmostLeaf = @children[i + 1]?.hasEmptyLeftmostLeaf()
+
+      switch childEnd.compare(start)
+        when -1
+          childIntersectsRange = false
+        when 1
+          childIntersectsRange = true
+        when 0
+          childIntersectsRange = child.hasEmptyRightmostLeaf() or (rangeIsEmpty and not nextChildHasEmptyLeftmostLeaf)
 
       if childIntersectsRange
         intersectionStart = Point.max(start, childStart)
@@ -37,7 +42,10 @@ class Node
       else
         i++
 
-      break if childEnd.compare(end) >= 0
+      if rangeIsEmpty
+        break if childIntersectsRange
+      else
+        break if not nextChildHasEmptyLeftmostLeaf and childEnd.compare(end) >= 0
 
       childStart = childEnd
 
