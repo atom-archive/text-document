@@ -43,7 +43,7 @@ describe "MarkerIndex", ->
       expect(markerIndex.getRange("f")).toBeUndefined()
       expect(markerIndex.getRange("g")).toEqual Range(Point(0, 3), Point(0, 3))
 
-  describe "::findContaining(range)", ->
+  describe "::findContaining(start, end)", ->
     it "returns the markers whose ranges contain the given range", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
       markerIndex.insert("b", Point(0, 3), Point(0, 7))
@@ -60,6 +60,25 @@ describe "MarkerIndex", ->
       expect(markerIndex.findContaining(Point(0, 3))).toEqualSet ["a", "b"]
       expect(markerIndex.findContaining(Point(0, 5))).toEqualSet ["a", "b"]
       expect(markerIndex.findContaining(Point(0, 7))).toEqualSet ["b"]
+
+  describe "::findIntersecting(start, end)", ->
+    it "returns the markers whose ranges intersect the given range", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+
+      # range queries
+      expect(markerIndex.findIntersecting(Point(0, 0), Point(0, 1))).toEqualSet []
+      expect(markerIndex.findIntersecting(Point(0, 1), Point(0, 2))).toEqualSet ["a"]
+      expect(markerIndex.findIntersecting(Point(0, 1), Point(0, 3))).toEqualSet ["a", "b"]
+      expect(markerIndex.findIntersecting(Point(0, 5), Point(0, 6))).toEqualSet ["a", "b"]
+      expect(markerIndex.findIntersecting(Point(0, 6), Point(0, 8))).toEqualSet ["b"]
+      expect(markerIndex.findIntersecting(Point(0, 8), Point(0, 9))).toEqualSet []
+
+      # point queries
+      expect(markerIndex.findIntersecting(Point(0, 2))).toEqualSet ["a"]
+      expect(markerIndex.findIntersecting(Point(0, 3))).toEqualSet ["a", "b"]
+      expect(markerIndex.findIntersecting(Point(0, 5))).toEqualSet ["a", "b"]
+      expect(markerIndex.findIntersecting(Point(0, 7))).toEqualSet ["b"]
 
   describe "::findStartingAt(point)", ->
     it "returns markers ending at the given point", ->

@@ -310,6 +310,13 @@ class MarkerIndex
       containing.forEach (id) -> containing.delete(id) unless containingEnd.has(id)
     containing
 
+  findIntersecting: (start, end) ->
+    intersecting = new Set
+    @rootNode.findContaining(start, intersecting)
+    if end? and end.compare(start) isnt 0
+      @rootNode.findContaining(end, intersecting)
+    intersecting
+
   findStartingAt: (point) ->
     result = new Set
     @rootNode.findStartingAt(point, result)
