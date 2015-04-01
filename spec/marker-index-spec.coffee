@@ -187,6 +187,7 @@ describe "MarkerIndex", ->
 
         for j in [1..10]
           # 80% insert, 20% delete
+
           if markers.length is 0 or random(10) > 2
             id = idCounter++
             [start, end] = getRange()

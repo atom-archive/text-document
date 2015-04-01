@@ -11,43 +11,35 @@ class Node
       @extent = @extent.traverse(child.extent)
       addAllToSet(@ids, child.ids)
 
-  insert: (ids, start, end, splicing) ->
+  insert: (ids, start, end) ->
     # Insert the given id into all children that intersect the given range.
     # Take the intersection of the given range and the child's range when
     # inserting into each child.
     rangeIsEmpty = start.compare(end) is 0
-    childStart = Point.zero()
+    childEnd = Point.zero()
     i = 0
     while i < @children.length
-      child = @children[i]
+      child = @children[i++]
+      childStart = childEnd
       childEnd = childStart.traverse(child.extent)
-      nextChildHasEmptyLeftmostLeaf = @children[i + 1]?.hasEmptyLeftmostLeaf()
+
+      switch childStart.compare(end)
+        when -1 then childFollowsRange = false
+        when 0  then childFollowsRange = not child.hasEmptyLeftmostLeaf() and not rangeIsEmpty
+        when 1  then childFollowsRange = true
+      break if childFollowsRange
 
       switch childEnd.compare(start)
-        when -1
-          childIntersectsRange = false
-        when 1
-          childIntersectsRange = true
-        when 0
-          childIntersectsRange = child.hasEmptyRightmostLeaf() or (rangeIsEmpty and not nextChildHasEmptyLeftmostLeaf)
+        when -1 then childPrecedesRange = true
+        when 0  then childPrecedesRange = not child.hasEmptyRightmostLeaf()
+        when 1  then childPrecedesRange = false
+      continue if childPrecedesRange
 
-      if childIntersectsRange
-        intersectionStart = Point.max(start, childStart)
-        intersectionEnd = Point.min(end, childEnd)
-        if newChildren = child.insert(ids, intersectionStart.traversalFrom(childStart), intersectionEnd.traversalFrom(childStart), splicing)
-          @children.splice(i, 1, newChildren...)
-          i += newChildren.length
-        else
-          i++
-      else
-        i++
-
-      if rangeIsEmpty
-        break if childIntersectsRange
-      else
-        break if not nextChildHasEmptyLeftmostLeaf and childEnd.compare(end) >= 0
-
-      childStart = childEnd
+      relativeStart = Point.max(Point.zero(), start.traversalFrom(childStart))
+      relativeEnd = Point.min(child.extent, end.traversalFrom(childStart))
+      if newChildren = child.insert(ids, relativeStart, relativeEnd)
+        @children.splice(i - 1, 1, newChildren...)
+        i += newChildren.length - 1
 
     if @children.length > BRANCHING_FACTOR
       splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
