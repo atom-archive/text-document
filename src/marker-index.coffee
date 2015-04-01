@@ -21,7 +21,7 @@ class Node
     while i < @children.length
       child = @children[i]
       childEnd = childStart.traverse(child.extent)
-      if rangeIsEmpty
+      if rangeIsEmpty or child.hasEmptyRightmostLeaf()
         childIntersectsRange = childEnd.compare(start) >= 0 and not @children[i + 1]?.hasEmptyLeftmostLeaf()
       else
         childIntersectsRange = childEnd.compare(start) > 0
