@@ -3,7 +3,7 @@ Range = require "../src/range"
 MarkerIndex = require "../src/marker-index"
 Random = require "random-seed"
 
-{toEqualSet, expectSet} = require "./spec-helper"
+{currentSpecFailed, toEqualSet} = require "./spec-helper"
 
 describe "MarkerIndex", ->
   markerIndex = null
@@ -196,6 +196,8 @@ describe "MarkerIndex", ->
           for {id, start, end} in markers
             expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id}; Seed: #{seed})"
             expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id}; Seed: #{seed})"
+
+          return if currentSpecFailed()
 
           for k in [1..10]
             [queryStart, queryEnd] = getRange()
