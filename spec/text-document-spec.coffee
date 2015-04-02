@@ -234,6 +234,29 @@ describe "TextDocument", ->
         expect(document.findMarkers(intersectsRange: [[0, 4], [0, 6]])).toEqual [marker4, marker2, marker3]
         expect(document.findMarkers(intersectsRange: [[0, 0], [0, 2]])).toEqual [marker4, marker2, marker1]
 
+      it "can find markers that start or end at a given row", ->
+        document.setTextInRange([[0, 7], [0, 7]], '\n')
+        document.setTextInRange([[0, 3], [0, 4]], ' \n')
+        expect(document.findMarkers(startRow: 0)).toEqual [marker4, marker2, marker1]
+        expect(document.findMarkers(startRow: 1)).toEqual [marker3]
+        expect(document.findMarkers(endRow: 2)).toEqual [marker4, marker3]
+        expect(document.findMarkers(startRow: 0, endRow: 2)).toEqual [marker4]
+
+      it "can find markers that intersect a given row", ->
+        document.setTextInRange([[0, 7], [0, 7]], '\n')
+        document.setTextInRange([[0, 3], [0, 4]], ' \n')
+        expect(document.findMarkers(intersectsRow: 0)).toEqual [marker4, marker2, marker1]
+        expect(document.findMarkers(intersectsRow: 1)).toEqual [marker4, marker2, marker3]
+
+      it "can find markers that intersect a given range", ->
+        document.setTextInRange([[0, 7], [0, 7]], '\n')
+        document.setTextInRange([[0, 3], [0, 4]], ' \n')
+        expect(document.findMarkers(intersectsRowRange: [1, 2])).toEqual [marker4, marker2, marker3]
+
+      it "can find markers that are contained within a certain range, inclusive", ->
+        expect(document.findMarkers(containedInRange: [[0, 0], [0, 6]])).toEqual [marker2, marker1]
+        expect(document.findMarkers(containedInRange: [[0, 4], [0, 7]])).toEqual [marker3]
+
     describe "Marker::destroy", ->
       it "removes the marker and calls callbacks registered with ::onDidDestroy", ->
         marker = document.markPosition([0, 6], a: '1')

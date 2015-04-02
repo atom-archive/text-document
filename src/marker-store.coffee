@@ -3,6 +3,7 @@ Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
 MarkerIndex = require "./marker-index"
+{intersectSet} = require "./set-helpers"
 
 module.exports =
 class MarkerStore
@@ -27,12 +28,12 @@ class MarkerStore
 
     if params.startPosition?
       point = Point.fromObject(params.startPosition)
-      intersectSet(markerIds, @index.findStartingAt(point))
+      intersectSet(markerIds, @index.findStartingIn(point))
       delete params.startPosition
 
     if params.endPosition?
       point = Point.fromObject(params.endPosition)
-      intersectSet(markerIds, @index.findEndingAt(point))
+      intersectSet(markerIds, @index.findEndingIn(point))
       delete params.endPosition
 
     if params.containsPoint?
@@ -49,6 +50,31 @@ class MarkerStore
       {start, end} = Range.fromObject(params.intersectsRange)
       intersectSet(markerIds, @index.findIntersecting(start, end))
       delete params.intersectsRange
+
+    if params.startRow?
+      row = params.startRow
+      intersectSet(markerIds, @index.findStartingIn(Point(row, 0), Point(row, Infinity)))
+      delete params.startRow
+
+    if params.endRow?
+      row = params.endRow
+      intersectSet(markerIds, @index.findEndingIn(Point(row, 0), Point(row, Infinity)))
+      delete params.endRow
+
+    if params.intersectsRow?
+      row = params.intersectsRow
+      intersectSet(markerIds, @index.findIntersecting(Point(row, 0), Point(row, Infinity)))
+      delete params.intersectsRow
+
+    if params.intersectsRowRange?
+      [startRow, endRow] = params.intersectsRowRange
+      intersectSet(markerIds, @index.findIntersecting(Point(startRow, 0), Point(endRow, Infinity)))
+      delete params.intersectsRowRange
+
+    if params.containedInRange?
+      {start, end} = Range.fromObject(params.containedInRange)
+      intersectSet(markerIds, @index.findContainedIn(start, end))
+      delete params.containedInRange
 
     result = []
     for id, marker of @markersById
@@ -70,6 +96,9 @@ class MarkerStore
   onDidCreateMarker: (callback) ->
     @emitter.on("did-create-marker", callback)
 
+  splice: (start, oldExtent, newExtent) ->
+    @index.splice(start, oldExtent, newExtent)
+
   ###
   Section: Marker API
   ###
@@ -86,6 +115,3 @@ class MarkerStore
 
   getMarkerEndPosition: (id) ->
     @index.getEnd(id)
-
-intersectSet = (set, other) ->
-  set.forEach (value) -> set.delete(value) unless other.has(value)

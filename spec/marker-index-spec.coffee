@@ -47,6 +47,8 @@ describe "MarkerIndex", ->
     it "returns the markers whose ranges contain the given range", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
       markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 4))
+      markerIndex.insert("d", Point(0, 8), Point(0, 8))
 
       # range queries
       expect(markerIndex.findContaining(Point(0, 1), Point(0, 3))).toEqualSet []
@@ -60,6 +62,26 @@ describe "MarkerIndex", ->
       expect(markerIndex.findContaining(Point(0, 3))).toEqualSet ["a", "b"]
       expect(markerIndex.findContaining(Point(0, 5))).toEqualSet ["a", "b"]
       expect(markerIndex.findContaining(Point(0, 7))).toEqualSet ["b"]
+      expect(markerIndex.findContaining(Point(0, 4))).toEqualSet ["a", "b", "c"]
+      expect(markerIndex.findContaining(Point(0, 8))).toEqualSet ["d"]
+
+  describe "::findContainedIn(start, end)", ->
+    it "returns the markers whose ranges are contained in the given range", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 4))
+
+      # range queries
+      expect(markerIndex.findContainedIn(Point(0, 1), Point(0, 3))).toEqualSet []
+      expect(markerIndex.findContainedIn(Point(0, 1), Point(0, 5))).toEqualSet ["a", "c"]
+      expect(markerIndex.findContainedIn(Point(0, 2), Point(0, 5))).toEqualSet ["a", "c"]
+      expect(markerIndex.findContainedIn(Point(0, 2), Point(0, 8))).toEqualSet ["a", "b", "c"]
+      expect(markerIndex.findContainedIn(Point(0, 3), Point(0, 8))).toEqualSet ["b", "c"]
+      expect(markerIndex.findContainedIn(Point(0, 5), Point(0, 8))).toEqualSet []
+
+      # point queries
+      expect(markerIndex.findContainedIn(Point(0, 4))).toEqualSet ["c"]
+      expect(markerIndex.findContainedIn(Point(0, 5))).toEqualSet []
 
   describe "::findIntersecting(start, end)", ->
     it "returns the markers whose ranges intersect the given range", ->
@@ -70,6 +92,7 @@ describe "MarkerIndex", ->
       expect(markerIndex.findIntersecting(Point(0, 0), Point(0, 1))).toEqualSet []
       expect(markerIndex.findIntersecting(Point(0, 1), Point(0, 2))).toEqualSet ["a"]
       expect(markerIndex.findIntersecting(Point(0, 1), Point(0, 3))).toEqualSet ["a", "b"]
+      expect(markerIndex.findIntersecting(Point(0, 3), Point(0, 4))).toEqualSet ["a", "b"]
       expect(markerIndex.findIntersecting(Point(0, 5), Point(0, 6))).toEqualSet ["a", "b"]
       expect(markerIndex.findIntersecting(Point(0, 6), Point(0, 8))).toEqualSet ["b"]
       expect(markerIndex.findIntersecting(Point(0, 8), Point(0, 9))).toEqualSet []
@@ -77,28 +100,50 @@ describe "MarkerIndex", ->
       # point queries
       expect(markerIndex.findIntersecting(Point(0, 2))).toEqualSet ["a"]
       expect(markerIndex.findIntersecting(Point(0, 3))).toEqualSet ["a", "b"]
+      expect(markerIndex.findIntersecting(Point(0, 4))).toEqualSet ["a", "b"]
       expect(markerIndex.findIntersecting(Point(0, 5))).toEqualSet ["a", "b"]
       expect(markerIndex.findIntersecting(Point(0, 7))).toEqualSet ["b"]
 
-  describe "::findStartingAt(point)", ->
+  describe "::findStartingIn(start, end)", ->
     it "returns markers ending at the given point", ->
-      markerIndex.insert("a", Point(0, 2), Point(0, 5))
-      markerIndex.insert("b", Point(0, 2), Point(0, 7))
-      markerIndex.insert("c", Point(0, 4), Point(0, 8))
+      markerIndex.insert("a", Point(0, 0), Point(0, 0))
+      markerIndex.insert("b", Point(0, 2), Point(0, 5))
+      markerIndex.insert("c", Point(0, 2), Point(0, 7))
+      markerIndex.insert("d", Point(0, 4), Point(0, 8))
 
-      expect(markerIndex.findStartingAt(Point(0, 1))).toEqualSet []
-      expect(markerIndex.findStartingAt(Point(0, 2))).toEqualSet ["a", "b"]
-      expect(markerIndex.findStartingAt(Point(0, 4))).toEqualSet ["c"]
+      # range queries
+      expect(markerIndex.findStartingIn(Point(0, 0), Point(0, 0))).toEqualSet ["a"]
+      expect(markerIndex.findStartingIn(Point(0, 0), Point(0, 1))).toEqualSet ["a"]
+      expect(markerIndex.findStartingIn(Point(0, 1), Point(0, 2))).toEqualSet ["b", "c"]
+      expect(markerIndex.findStartingIn(Point(0, 2), Point(0, 3))).toEqualSet ["b", "c"]
+      expect(markerIndex.findStartingIn(Point(0, 2), Point(0, 4))).toEqualSet ["b", "c", "d"]
+      expect(markerIndex.findStartingIn(Point(0, 4), Point(0, 5))).toEqualSet ["d"]
+      expect(markerIndex.findStartingIn(Point(0, 3), Point(0, 5))).toEqualSet ["d"]
+      expect(markerIndex.findStartingIn(Point(0, 6), Point(0, 8))).toEqualSet []
 
-  describe "::findEndingAt(point)", ->
+      # point queries
+      expect(markerIndex.findStartingIn(Point(0, 1))).toEqualSet []
+      expect(markerIndex.findStartingIn(Point(0, 2))).toEqualSet ["b", "c"]
+      expect(markerIndex.findStartingIn(Point(0, 4))).toEqualSet ["d"]
+
+  describe "::findEndingIn(start, end)", ->
     it "returns markers ending at the given point", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
       markerIndex.insert("b", Point(0, 3), Point(0, 7))
       markerIndex.insert("c", Point(0, 4), Point(0, 7))
 
-      expect(markerIndex.findEndingAt(Point(0, 4))).toEqualSet []
-      expect(markerIndex.findEndingAt(Point(0, 5))).toEqualSet ["a"]
-      expect(markerIndex.findEndingAt(Point(0, 7))).toEqualSet ["b", "c"]
+      # range queries
+      expect(markerIndex.findEndingIn(Point(0, 0), Point(0, 4))).toEqualSet []
+      expect(markerIndex.findEndingIn(Point(0, 0), Point(0, 5))).toEqualSet ["a"]
+      expect(markerIndex.findEndingIn(Point(0, 5), Point(0, 6))).toEqualSet ["a"]
+      expect(markerIndex.findEndingIn(Point(0, 2), Point(0, 6))).toEqualSet ["a"]
+      expect(markerIndex.findEndingIn(Point(0, 1), Point(0, 7))).toEqualSet ["a", "b", "c"]
+      expect(markerIndex.findEndingIn(Point(0, 1), Point(0, 8))).toEqualSet ["a", "b", "c"]
+
+      # point queries
+      expect(markerIndex.findEndingIn(Point(0, 4))).toEqualSet []
+      expect(markerIndex.findEndingIn(Point(0, 5))).toEqualSet ["a"]
+      expect(markerIndex.findEndingIn(Point(0, 7))).toEqualSet ["b", "c"]
 
   describe "::splice(position, oldExtent, newExtent)", ->
     describe "when the change has a non-empty old extent and new extent", ->

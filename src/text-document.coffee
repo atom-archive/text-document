@@ -149,6 +149,7 @@ class TextDocument
     end = linesLayer.toSourcePosition(oldRange.end)
     @bufferLayer.splice(start, end.traversalFrom(start), newText)
     newRange = new Range(oldRange.start, linesLayer.fromSourcePosition(start.traverse(Point(0, newText.length))))
+    @markerStore.splice(start, end.traversalFrom(start), newRange.end.traversalFrom(start))
     @emitter.emit("did-change", {oldText, newText, oldRange, newRange})
     newRange
 

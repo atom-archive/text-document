@@ -1,5 +1,6 @@
 Point = require "./point"
 Range = require "./range"
+{setEqual, subtractSet, addSet, intersectSet} = require "./set-helpers"
 
 BRANCHING_FACTOR = 3
 
@@ -9,7 +10,7 @@ class Node
     @extent = Point.zero()
     for child in @children
       @extent = @extent.traverse(child.extent)
-      addAllToSet(@ids, child.ids)
+      addSet(@ids, child.ids)
 
   insert: (ids, start, end) ->
     # Insert the given id into all children that intersect the given range.
@@ -45,7 +46,7 @@ class Node
       splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
       [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
     else
-      addAllToSet(@ids, ids)
+      addSet(@ids, ids)
       return
 
   delete: (id) ->
@@ -122,38 +123,21 @@ class Node
       break if childEnd.compare(point) > 0
       childStart = childEnd
 
-  findStartingAt: (point, set) ->
-    childStart = Point.zero()
-    for child, i in @children
-      childEnd = childStart.traverse(child.extent)
-      if point.compare(childEnd) < 0
-        if point.compare(childStart) is 0
-          child.findStartingAt(Point.zero(), set)
-          if previousChild = @children[i - 1]
-            alreadyStartedIds = new Set
-            previousChild.findContaining(previousChild.extent, alreadyStartedIds)
-            deleteAllFromSet(set, alreadyStartedIds)
-        else
-          child.findStartingAt(point.traversalFrom(childStart), set)
-      break if childEnd.compare(point) > 0
-      childStart = childEnd
-
-  findEndingAt: (point, set) ->
-    childStart = Point.zero()
-    for child, i in @children
-      childEnd = childStart.traverse(child.extent)
-      comparison = point.compare(childEnd)
-      if comparison < 0
-        child.findEndingAt(point.traversalFrom(childStart), set)
-      else if comparison is 0
-        child.findEndingAt(child.extent, set)
-
-        if nextChild = @children[i + 1]
-          continuingIds = new Set
-          nextChild.findContaining(Point.zero(), continuingIds)
-          deleteAllFromSet(set, continuingIds)
-      break if childEnd.compare(point) > 0
-      childStart = childEnd
+  findIntersecting: (start, end, set) ->
+    if start.isZero() and end.compare(@extent) is 0
+      addSet(set, @ids)
+    else
+      childEnd = Point.zero()
+      for child in @children
+        childStart = childEnd
+        childEnd = childStart.traverse(child.extent)
+        continue if childEnd.compare(start) < 0
+        break if childStart.compare(end) > 0
+        child.findIntersecting(
+          Point.max(Point.zero(), start.traversalFrom(childStart)),
+          Point.min(child.extent, end.traversalFrom(childStart)),
+          set
+        )
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -177,11 +161,11 @@ class Leaf
     # the given id to this leaf. Otherwise, split this leaf into up to 3 leaves,
     # adding the id to the portion of this leaf that intersects the given range.
     if start.isZero() and end.compare(@extent) is 0
-      addAllToSet(@ids, ids)
+      addSet(@ids, ids)
       return
     else
       newIds = new Set(@ids)
-      addAllToSet(newIds, ids)
+      addSet(newIds, ids)
       newLeaves = []
       newLeaves.push(new Leaf(start, new Set(@ids))) if start.isPositive()
       newLeaves.push(new Leaf(end.traversalFrom(start), newIds))
@@ -192,7 +176,7 @@ class Leaf
     @ids.delete(id)
 
   splice: (position, spliceOldExtent, spliceNewExtent, excludedIds) ->
-    deleteAllFromSet(@ids, excludedIds) if excludedIds?
+    subtractSet(@ids, excludedIds) if excludedIds?
     myOldExtent = @extent
     spliceOldEnd = position.traverse(spliceOldExtent)
     spliceNewEnd = position.traverse(spliceNewExtent)
@@ -231,13 +215,10 @@ class Leaf
     @extent.isZero()
 
   findContaining: (point, set) ->
-    addAllToSet(set, @ids)
+    addSet(set, @ids)
 
-  findStartingAt: (point, set) ->
-    addAllToSet(set, @ids) if point.isZero()
-
-  findEndingAt: (point, set) ->
-    addAllToSet(set, @ids) if point.compare(@extent) is 0
+  findIntersecting: (start, end, set) ->
+    addSet(set, @ids)
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -268,11 +249,9 @@ class MarkerIndex
 
   splice: (position, oldExtent, newExtent) ->
     if oldExtent.isZero()
-      startingIds = new Set
-      @rootNode.findStartingAt(position, startingIds)
-      endingIds = new Set
-      @rootNode.findEndingAt(position, endingIds)
-      addAllToSet(startingIds, endingIds)
+      startingIds = @findStartingIn(position)
+      endingIds = @findEndingIn(position)
+      addSet(startingIds, endingIds)
       boundaryIds = startingIds
 
       if boundaryIds.size > 0
@@ -310,32 +289,27 @@ class MarkerIndex
       containing.forEach (id) -> containing.delete(id) unless containingEnd.has(id)
     containing
 
-  findIntersecting: (start, end) ->
+  findContainedIn: (start, end = start) ->
+    result = @findStartingIn(start, end)
+    subtractSet(result, @findIntersecting(end.traverse(Point(0, 1))))
+    result
+
+  findIntersecting: (start, end = start) ->
     intersecting = new Set
-    @rootNode.findContaining(start, intersecting)
-    if end? and end.compare(start) isnt 0
-      @rootNode.findContaining(end, intersecting)
+    @rootNode.findIntersecting(start, end, intersecting)
     intersecting
 
-  findStartingAt: (point) ->
-    result = new Set
-    @rootNode.findStartingAt(point, result)
+  findStartingIn: (start, end = start) ->
+    result = @findIntersecting(start, end)
+    if start.isPositive()
+      if start.column is 0
+        previousPoint = Point(start.row - 1, Infinity)
+      else
+        previousPoint = Point(start.row, start.column - 1)
+      subtractSet(result, @findIntersecting(previousPoint))
     result
 
-  findEndingAt: (point) ->
-    result = new Set
-    @rootNode.findEndingAt(point, result)
+  findEndingIn: (start, end = start) ->
+    result = @findIntersecting(start, end)
+    subtractSet(result, @findIntersecting(end.traverse(Point(0, 1))))
     result
-
-setEqual = (a, b) ->
-  return false unless a.size is b.size
-  iterator = a.values()
-  until (next = iterator.next()).done
-    return false unless b.has(next.value)
-  true
-
-deleteAllFromSet = (set, valuesToRemove) ->
-  valuesToRemove.forEach (value) -> set.delete(value)
-
-addAllToSet = (set, valuesToAdd) ->
-  valuesToAdd.forEach (value) -> set.add(value)
