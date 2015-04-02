@@ -2,7 +2,8 @@ Point = require "./point"
 Range = require "./range"
 {addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
-BRANCHING_FACTOR = 3
+# Max number of children allowed in a Node
+BRANCHING_THRESHOLD = 3
 
 class Node
   constructor: (@children) ->
@@ -47,8 +48,8 @@ class Node
         i += newChildren.length - 1
       break if rangeIsEmpty
 
-    if @children.length > BRANCHING_FACTOR
-      splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
+    if @children.length > BRANCHING_THRESHOLD
+      splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
       [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
     else
       addSet(@ids, ids)
