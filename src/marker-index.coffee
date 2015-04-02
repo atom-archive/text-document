@@ -1,6 +1,6 @@
 Point = require "./point"
 Range = require "./range"
-{setEqual, subtractSet, addSet, intersectSet} = require "./set-helpers"
+{addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
 BRANCHING_FACTOR = 3
 
@@ -13,9 +13,6 @@ class Node
       addSet(@ids, child.ids)
 
   insert: (ids, start, end) ->
-    # Insert the given id into all children that intersect the given range.
-    # Take the intersection of the given range and the child's range when
-    # inserting into each child.
     rangeIsEmpty = start.compare(end) is 0
     childEnd = Point.zero()
     i = 0
@@ -24,23 +21,31 @@ class Node
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
 
-      switch childStart.compare(end)
-        when -1 then childFollowsRange = false
-        when 0  then childFollowsRange = not child.hasEmptyLeftmostLeaf() and not rangeIsEmpty
-        when 1  then childFollowsRange = true
-      break if childFollowsRange
-
       switch childEnd.compare(start)
         when -1 then childPrecedesRange = true
-        when 0  then childPrecedesRange = not child.hasEmptyRightmostLeaf()
         when 1  then childPrecedesRange = false
+        when 0
+          if child.hasEmptyRightmostLeaf()
+            childPrecedesRange = false
+          else
+            childPrecedesRange = true
+            if rangeIsEmpty
+              ids = new Set(ids)
+              child.findContaining(child.extent, ids)
       continue if childPrecedesRange
+
+      switch childStart.compare(end)
+        when -1 then childFollowsRange = false
+        when 1  then childFollowsRange = true
+        when 0  then childFollowsRange = not (child.hasEmptyLeftmostLeaf() or rangeIsEmpty)
+      break if childFollowsRange
 
       relativeStart = Point.max(Point.zero(), start.traversalFrom(childStart))
       relativeEnd = Point.min(child.extent, end.traversalFrom(childStart))
       if newChildren = child.insert(ids, relativeStart, relativeEnd)
         @children.splice(i - 1, 1, newChildren...)
         i += newChildren.length - 1
+      break if rangeIsEmpty
 
     if @children.length > BRANCHING_FACTOR
       splitIndex = Math.ceil(@children.length / BRANCHING_FACTOR)
@@ -50,15 +55,87 @@ class Node
       return
 
   delete: (id) ->
-    if @ids.has(id)
-      @ids.delete(id)
-      i = 0
-      while i < @children.length
-        @children[i].delete(id)
-        if @children[i - 1]?.shouldMergeWith(@children[i])
-          @children.splice(i - 1, 2, @children[i - 1].merge(@children[i]))
-        else
-          i++
+    return unless @ids.delete(id)
+    i = 0
+    while i < @children.length
+      @children[i].delete(id)
+      if @children[i - 1]?.shouldMergeWith(@children[i])
+        @children.splice(i - 1, 2, @children[i - 1].merge(@children[i]))
+      else
+        i++
+
+  splice: (position, oldExtent, newExtent, excludedIds) ->
+    oldRangeIsEmpty = oldExtent.isZero()
+    childEnd = Point.zero()
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+
+      if remainderToDelete?
+        remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
+        continue
+
+      switch childEnd.compare(position)
+        when -1 then childPrecedesRange = true
+        when 0  then childPrecedesRange = not (child.hasEmptyRightmostLeaf() and oldRangeIsEmpty)
+        when 1  then childPrecedesRange = false
+      continue if childPrecedesRange
+
+      relativeStart = position.traversalFrom(childStart)
+      remainderToDelete = child.splice(relativeStart, oldExtent, newExtent, excludedIds)
+
+    @extent = @extent
+      .traverse(newExtent.traversalFrom(oldExtent))
+      .traverse(remainderToDelete)
+    remainderToDelete
+
+  getStart: (id) ->
+    return unless @ids.has(id)
+    childEnd = Point.zero()
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+      if startRelativeToChild = child.getStart(id)
+        return childStart.traverse(startRelativeToChild)
+    return
+
+  getEnd: (id) ->
+    return unless @ids.has(id)
+    childEnd = Point.zero()
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+      if endRelativeToChild = child.getEnd(id)
+        end = childStart.traverse(endRelativeToChild)
+      else if end?
+        break
+    end
+
+  findContaining: (point, set) ->
+    childEnd = Point.zero()
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+      continue if childEnd.compare(point) < 0
+      break if childStart.compare(point) > 0
+      child.findContaining(point.traversalFrom(childStart), set)
+
+  findIntersecting: (start, end, set) ->
+    if start.isZero() and end.compare(@extent) is 0
+      addSet(set, @ids)
+      return
+
+    childEnd = Point.zero()
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+      continue if childEnd.compare(start) < 0
+      break if childStart.compare(end) > 0
+      child.findIntersecting(
+        Point.max(Point.zero(), start.traversalFrom(childStart)),
+        Point.min(child.extent, end.traversalFrom(childStart)),
+        set
+      )
 
   hasEmptyRightmostLeaf: ->
     @children[@children.length - 1].hasEmptyRightmostLeaf()
@@ -66,78 +143,11 @@ class Node
   hasEmptyLeftmostLeaf: ->
     @children[0].hasEmptyLeftmostLeaf()
 
-  splice: (position, oldExtent, newExtent, excludedIds) ->
-    childStart = Point.zero()
-    oldExtentEmpty = oldExtent.isZero()
-    for child in @children
-      childEnd = childStart.traverse(child.extent)
-
-      if remainderToDelete?
-        break unless remainderToDelete.isPositive()
-        remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
-        continue
-
-      comparison = childEnd.compare(position)
-      if comparison > 0 or (comparison is 0 and oldExtentEmpty and child.hasEmptyRightmostLeaf())
-        remainderToDelete = child.splice(position.traversalFrom(childStart), oldExtent, newExtent, excludedIds)
-
-      childStart = childEnd
-
-    @extent = @extent
-      .traverse(newExtent.traversalFrom(oldExtent))
-      .traverse(remainderToDelete)
-    remainderToDelete
-
   shouldMergeWith: (other) ->
     @children.length + other.children.length <= BRANCHING_FACTOR
 
   merge: (other) ->
     new Node(@children.concat(other.children))
-
-  getStart: (id) ->
-    return unless @ids.has(id)
-    childStart = Point.zero()
-    for child in @children
-      if startRelativeToChild = child.getStart(id)
-        return childStart.traverse(startRelativeToChild)
-      childStart = childStart.traverse(child.extent)
-    return
-
-  getEnd: (id) ->
-    return unless @ids.has(id)
-    childStart = Point.zero()
-    for child in @children
-      if endRelativeToChild = child.getEnd(id)
-        end = childStart.traverse(endRelativeToChild)
-      else if end?
-        break
-      childStart = childStart.traverse(child.extent)
-    end
-
-  findContaining: (point, set) ->
-    childStart = Point.zero()
-    for child in @children
-      childEnd = childStart.traverse(child.extent)
-      if point.compare(childEnd) <= 0
-        child.findContaining(point.traversalFrom(childStart), set)
-      break if childEnd.compare(point) > 0
-      childStart = childEnd
-
-  findIntersecting: (start, end, set) ->
-    if start.isZero() and end.compare(@extent) is 0
-      addSet(set, @ids)
-    else
-      childEnd = Point.zero()
-      for child in @children
-        childStart = childEnd
-        childEnd = childStart.traverse(child.extent)
-        continue if childEnd.compare(start) < 0
-        break if childStart.compare(end) > 0
-        child.findIntersecting(
-          Point.max(Point.zero(), start.traversalFrom(childStart)),
-          Point.min(child.extent, end.traversalFrom(childStart)),
-          set
-        )
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -196,17 +206,17 @@ class Leaf
     # shrink enough, we may need to shrink subsequent leaves.
     @extent.traversalFrom(myOldExtent).traversalFrom(spliceDelta)
 
-  shouldMergeWith: (other) ->
-    setEqual(@ids, other.ids)
-
-  merge: (other) ->
-    new Leaf(@extent.traverse(other.extent), new Set(@ids))
-
   getStart: (id) ->
     Point.zero() if @ids.has(id)
 
   getEnd: (id) ->
     @extent if @ids.has(id)
+
+  findContaining: (point, set) ->
+    addSet(set, @ids)
+
+  findIntersecting: (start, end, set) ->
+    addSet(set, @ids)
 
   hasEmptyRightmostLeaf: ->
     @extent.isZero()
@@ -214,11 +224,11 @@ class Leaf
   hasEmptyLeftmostLeaf: ->
     @extent.isZero()
 
-  findContaining: (point, set) ->
-    addSet(set, @ids)
+  shouldMergeWith: (other) ->
+    setEqual(@ids, other.ids)
 
-  findIntersecting: (start, end, set) ->
-    addSet(set, @ids)
+  merge: (other) ->
+    new Leaf(@extent.traverse(other.extent), new Set(@ids))
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -238,10 +248,7 @@ class MarkerIndex
     @rootNode = new Leaf(Point.infinity(), new Set)
 
   insert: (id, start, end) ->
-    ids = new Set
-    ids.add(id)
-    @rootNode.findContaining(start, ids) if start.compare(end) is 0
-    if splitNodes = @rootNode.insert(ids, start, end)
+    if splitNodes = @rootNode.insert(new Set().add(id), start, end)
       @rootNode = new Node(splitNodes)
 
   delete: (id) ->
