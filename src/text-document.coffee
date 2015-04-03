@@ -8,6 +8,7 @@ StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
 History = require "./history"
+TransactionAbortedException = require './transaction-aborted-exception'
 
 LineEnding = /[\r\n]*$/
 
@@ -197,18 +198,33 @@ class TextDocument
   ###
 
   undo: ->
-    if change = @history.popUndoStack()
-      @applyChange(change, true)
+    if transaction = @history.popUndoStack()
+      @applyChange(change, true) for change in transaction.changes
 
   redo: ->
-    if change = @history.popRedoStack()
-      @applyChange(change, true)
+    if transaction = @history.popRedoStack()
+      @applyChange(change, true) for change in transaction.changes
 
   transact: (groupingInterval, fn) ->
     if typeof groupingInterval is 'function'
       fn = groupingInterval
       groupingInterval = 0
-    fn()
+
+    exceptionToRethrow = null
+    try
+      try
+        @history.transact(groupingInterval, fn)
+      catch innerException
+        if innerException instanceof TransactionAbortedException
+          throw innerException
+        else
+          exceptionToRethrow = innerException
+          @abortTransaction()
+    catch abortException
+      @applyChange(change, true) for change in abortException.transaction.changes
+      throw exceptionToRethrow if exceptionToRethrow?
+
+  abortTransaction: -> @history.abortTransaction()
 
   groupChangesSinceCheckpoint: ->
 
