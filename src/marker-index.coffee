@@ -145,7 +145,7 @@ class Node
     @children[0].hasEmptyLeftmostLeaf()
 
   shouldMergeWith: (other) ->
-    @children.length + other.children.length <= BRANCHING_FACTOR
+    @children.length + other.children.length <= BRANCHING_THRESHOLD
 
   merge: (other) ->
     new Node(@children.concat(other.children))
