@@ -498,3 +498,24 @@ describe "TextDocument", ->
         document.undo()
         document.undo()
         expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "groups adjacent transactions within each other's grouping intervals", ->
+        now = 0
+        spyOn(Date, 'now').and.callFake -> now
+
+        document.transact 100, -> document.setTextInRange([[0, 2], [0, 5]], "y")
+        now += 100
+        document.transact 200, -> document.setTextInRange([[0, 3], [0, 3]], "yy")
+        now += 200
+        document.transact 200, -> document.setTextInRange([[0, 5], [0, 5]], "yy")
+
+        # not grouped because the previous transaction's grouping interval
+        # is only 200ms and we've advanced 300ms
+        now += 300
+        document.transact 300, -> document.setTextInRange([[0, 7], [0, 7]], "!!")
+
+        expect(document.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
+        document.undo()
+        expect(document.getText()).toBe "heyyyyy\nworms\r\nhow are you doing?"
+        document.undo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"

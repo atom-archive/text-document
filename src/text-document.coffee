@@ -213,6 +213,7 @@ class TextDocument
     try
       fn()
       @groupChangesSinceCheckpoint(checkpoint)
+      @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
     catch exception
       @revertToCheckpoint(checkpoint)
       throw exception unless exception is TransactionAborted

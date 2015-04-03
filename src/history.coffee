@@ -16,6 +16,27 @@ class History
       break if entry is checkpoint
       @undoStack.splice(i, 1) if entry instanceof Checkpoint
 
+  applyCheckpointGroupingInterval: (checkpoint, groupingInterval) ->
+    return if groupingInterval is 0
+
+    now = Date.now()
+
+    groupedCheckpoint = null
+    checkpointIndex = @undoStack.lastIndexOf(checkpoint)
+
+    for i in [checkpointIndex - 1..0] by -1
+      entry = @undoStack[i]
+      if entry instanceof Checkpoint
+        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) >= now
+          @undoStack.splice(checkpointIndex, 1)
+          groupedCheckpoint = entry
+        else
+          groupedCheckpoint = checkpoint
+        break
+
+    groupedCheckpoint.timestamp = now
+    groupedCheckpoint.groupingInterval = groupingInterval
+
   pushChange: (change) ->
     @undoStack.push(new Checkpoint, change)
     @redoStack.length = 0
