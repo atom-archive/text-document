@@ -1,4 +1,8 @@
+counter = 1
+
 class Checkpoint
+  constructor: ->
+    @id = counter++
 
 module.exports =
 class History
@@ -12,9 +16,11 @@ class History
     checkpoint
 
   groupChangesSinceCheckpoint: (checkpoint) ->
+    return false if @undoStack.lastIndexOf(checkpoint) is -1
     for entry, i in @undoStack by -1
       break if entry is checkpoint
       @undoStack.splice(i, 1) if entry instanceof Checkpoint
+    true
 
   applyCheckpointGroupingInterval: (checkpoint, groupingInterval) ->
     return if groupingInterval is 0
@@ -42,16 +48,36 @@ class History
     @redoStack.length = 0
 
   popUndoStack: ->
-    invertedChanges = []
-    while entry = @undoStack.pop()
-      @redoStack.push(entry)
+    firstChangeIndex = null
+    for entry, i in @undoStack by -1
       if entry instanceof Checkpoint
-        break if invertedChanges.length > 0
+        break if firstChangeIndex?
       else
-        invertedChanges.push(@invertChange(entry))
+        firstChangeIndex = i
+
+    return [] unless firstChangeIndex?
+
+    invertedChanges = []
+    undoneEntries = @undoStack.splice(firstChangeIndex, @undoStack.length - firstChangeIndex)
+    for entry in undoneEntries by -1
+      @redoStack.push(entry)
+      invertedChanges.push(@invertChange(entry)) unless entry instanceof Checkpoint
     invertedChanges
 
+  popRedoStack: ->
+    changes = []
+    while entry = @redoStack.pop()
+      @undoStack.push(entry)
+      if entry instanceof Checkpoint
+        break if changes.length > 0
+      else
+        changes.push(entry)
+    changes
+
   truncateUndoStack: (checkpoint) ->
+    checkpointIndex = @undoStack.lastIndexOf(checkpoint)
+    return false if checkpointIndex is -1
+
     invertedChanges = []
     while entry = @undoStack.pop()
       if entry instanceof Checkpoint
@@ -59,18 +85,6 @@ class History
       else
         invertedChanges.push(@invertChange(entry))
     invertedChanges
-
-  popRedoStack: ->
-    changes = []
-    while entry = @redoStack.pop()
-      if entry instanceof Checkpoint
-        if changes.length > 0
-          @redoStack.push(entry)
-          break
-      else
-        changes.push(entry)
-      @undoStack.push(entry)
-    changes
 
   clearRedoStack: ->
     @redoStack.length = 0

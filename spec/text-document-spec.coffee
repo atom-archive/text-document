@@ -511,6 +511,129 @@ describe "TextDocument", ->
         document.undo()
         expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
+    describe "checkpoints", ->
+      beforeEach ->
+        document.setText("")
+
+      describe "::revertToCheckpoint(checkpoint)", ->
+        it "undoes all changes following the checkpoint", ->
+          document.append("hello")
+          checkpoint = document.createCheckpoint()
+
+          document.transact ->
+            document.append("\n")
+            document.append("world")
+
+          checkpoint2 = document.createCheckpoint()
+
+          document.append("\n")
+          document.append("how are you?")
+
+          result = document.revertToCheckpoint(checkpoint)
+          expect(result).toBe(true)
+          expect(document.getText()).toBe("hello")
+
+          return
+
+          result = document.revertToCheckpoint(checkpoint2)
+          expect(result).toBe(false)
+
+          document.undo()
+          expect(document.getText()).toBe("")
+
+          document.redo()
+          expect(document.getText()).toBe("hello")
+
+      describe "::groupChangesSinceCheckpoint(checkpoint)", ->
+        it "combines all changes since the checkpoint into a single transaction", ->
+          document.append("one\n")
+          checkpoint = document.createCheckpoint()
+          document.append("two\n")
+          checkpoint2 = document.createCheckpoint()
+          document.transact ->
+            document.append("three\n")
+            document.append("four")
+
+          result = document.groupChangesSinceCheckpoint(checkpoint)
+          expect(result).toBe true
+
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+            four
+          """
+
+          result = document.groupChangesSinceCheckpoint(checkpoint2)
+          expect(result).toBe false
+
+          document.undo()
+          expect(document.getText()).toBe("one\n")
+
+          document.redo()
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+            four
+          """
+
+        it "skips any later checkpoints when grouping changes", ->
+          document.append("one\n")
+          checkpoint = document.createCheckpoint()
+          document.append("two\n")
+          checkpoint2 = document.createCheckpoint()
+          document.append("three")
+
+          document.groupChangesSinceCheckpoint(checkpoint)
+          expect(document.revertToCheckpoint(checkpoint2)).toBe(false)
+
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+          """
+
+          document.undo()
+          expect(document.getText()).toBe("one\n")
+
+          document.redo()
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+          """
+
+      it "skips checkpoints when undoing", ->
+        document.append("hello")
+        document.createCheckpoint()
+        document.createCheckpoint()
+        document.createCheckpoint()
+        document.undo()
+        expect(document.getText()).toBe("")
+
+      it "preserves checkpoints across undo and redo", ->
+        document.append("hello\n")
+        checkpoint = document.createCheckpoint()
+        document.undo()
+        expect(document.getText()).toBe("")
+        document.redo()
+        expect(document.getText()).toBe("hello\n")
+        document.append("world")
+
+        expect(document.revertToCheckpoint(checkpoint)).toBe true
+        expect(document.getText()).toBe("hello\n")
+
+      it "handles checkpoints created when there have been no changes", ->
+        document = new TextDocument
+        checkpoint1 = document.createCheckpoint()
+        checkpoint2 = document.createCheckpoint()
+        document.undo()
+        document.append("hello")
+        expect(document.revertToCheckpoint(checkpoint2)).toBe true
+        expect(document.revertToCheckpoint(checkpoint1)).toBe true
+        expect(document.getText()).toBe("")
+
   describe "file details", ->
     describe "encoding", ->
       it "uses utf8 by default", ->

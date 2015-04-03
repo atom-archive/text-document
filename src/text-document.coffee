@@ -145,6 +145,12 @@ class TextDocument
     oldText = @getTextInRange(oldRange)
     @applyChange({oldRange, oldText, newText})
 
+  append: (text) ->
+    @insert(@getEndPosition(), text)
+
+  insert: (position, text) ->
+    @setTextInRange(Range(position, position), text)
+
   lineForRow: (row) ->
     @linesLayer
       .slice(Point(row, 0), Point(row + 1, 0))
@@ -179,10 +185,13 @@ class TextDocument
   ###
 
   getLineCount: ->
-    @linesLayer.getExtent().row + 1
+    @getEndPosition().row + 1
 
   getLastRow: ->
-    @getLineCount() - 1
+    @getEndPosition().row
+
+  getEndPosition: ->
+    @linesLayer.getExtent()
 
   clipPosition: (position) ->
     position = Point.fromObject(position)
@@ -228,7 +237,11 @@ class TextDocument
     @history.groupChangesSinceCheckpoint(checkpoint)
 
   revertToCheckpoint: (checkpoint) ->
-    @applyChange(change, true) for change in @history.truncateUndoStack(checkpoint)
+    if changesToUndo = @history.truncateUndoStack(checkpoint)
+      @applyChange(change, true) for change in changesToUndo
+      true
+    else
+      false
 
   ###
   Section: Private
