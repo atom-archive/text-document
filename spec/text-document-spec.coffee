@@ -390,53 +390,111 @@ describe "TextDocument", ->
         document.setTextInRange([[1, 3], [1, 5]], 'ms')
         expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
-      describe "::transact([undoInterval], fn)", ->
-        it "groups all operations performed within the given function into a single undo/redo operation", ->
+      it "groups all operations performed within the given function into a single undo/redo operation", ->
+        document.transact ->
+          document.setTextInRange([[0, 2], [0, 5]], "y")
+          document.setTextInRange([[2, 13], [2, 14]], "igg")
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        # subsequent changes are not included in the transaction
+        document.setTextInRange([[1, 0], [1, 0]], "little ")
+        document.undo()
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        # this should undo all changes in the transaction
+        document.undo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        # previous changes are not included in the transaction
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        # this should redo all changes in the transaction
+        document.redo()
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        # this should redo the change following the transaction
+        document.redo()
+        expect(document.getText()).toBe "hey\nlittle worms\r\nhow are you digging?"
+
+      it "does not push the transaction to the undo stack if it is empty", ->
+        document.transact ->
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        document.transact -> document.abortTransaction()
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "halts execution undoes all operations since the beginning of the transaction if ::abortTransaction() is called", ->
+        continuedPastAbort = false
+        document.transact ->
+          document.setTextInRange([[0, 2], [0, 5]], "y")
+          document.setTextInRange([[2, 13], [2, 14]], "igg")
+          document.abortTransaction()
+          continuedPastAbort = true
+
+        expect(continuedPastAbort).toBe false
+
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+      it "preserves the redo stack until a content change occurs", ->
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        # no changes occur in this transaction before aborting
+        document.transact ->
+          document.markRange([[0, 0], [0, 5]])
+          document.abortTransaction()
+          document.setTextInRange([[0, 0], [0, 5]], "hey")
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.transact ->
+          document.setTextInRange([[0, 0], [0, 5]], "hey")
+          document.abortTransaction()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "allows nested transactions", ->
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.transact ->
+          document.setTextInRange([[0, 2], [0, 5]], "y")
           document.transact ->
-            document.setTextInRange([[0, 2], [0, 5]], "y")
             document.setTextInRange([[2, 13], [2, 14]], "igg")
-          expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
-
-          # subsequent changes are not included in the transaction
-          document.setTextInRange([[1, 0], [1, 0]], "little ")
+            document.setTextInRange([[2, 18], [2, 19]], "'")
+          expect(document.getText()).toBe "hey\nworms\r\nhow are you diggin'?"
           document.undo()
-          expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
-
-          # this should undo all changes in the transaction
-          document.undo()
-          expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
-
-          # previous changes are not included in the transaction
-          document.undo()
-          expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+          expect(document.getText()).toBe "hey\nworms\r\nhow are you doing?"
           document.redo()
-          expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+          expect(document.getText()).toBe "hey\nworms\r\nhow are you diggin'?"
 
-          # this should redo all changes in the transaction
-          document.redo()
-          expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+        document.undo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
-          # this should redo the change following the transaction
-          document.redo()
-          expect(document.getText()).toBe "hey\nlittle worms\r\nhow are you digging?"
+        document.redo()
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you diggin'?"
 
-        it "does not push the transaction to the undo stack if it is empty", ->
-          document.transact ->
-          document.undo()
-          expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
-
-        it "undoes all operations since the beginning of the transaction if ::abortTransaction() is called", ->
-          document.transact ->
-            document.setTextInRange([[0, 2], [0, 5]], "y")
-            document.setTextInRange([[2, 13], [2, 14]], "igg")
-            document.abortTransaction()
-          expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
-
-          document.undo()
-          expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
-
-          document.redo()
-          expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
-
-          document.redo()
-          expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+        document.undo()
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"

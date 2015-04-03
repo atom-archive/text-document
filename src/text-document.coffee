@@ -8,7 +8,8 @@ StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
 History = require "./history"
-TransactionAbortedException = require './transaction-aborted-exception'
+
+TransactionAborted = Symbol("transaction aborted")
 
 LineEnding = /[\r\n]*$/
 
@@ -198,35 +199,35 @@ class TextDocument
   ###
 
   undo: ->
-    if transaction = @history.popUndoStack()
-      @applyChange(change, true) for change in transaction.changes
+    @applyChange(change, true) for change in @history.popUndoStack()
 
   redo: ->
-    if transaction = @history.popRedoStack()
-      @applyChange(change, true) for change in transaction.changes
+    @applyChange(change, true) for change in @history.popRedoStack()
 
   transact: (groupingInterval, fn) ->
     if typeof groupingInterval is 'function'
       fn = groupingInterval
       groupingInterval = 0
 
-    exceptionToRethrow = null
+    checkpoint = @createCheckpoint()
     try
-      try
-        @history.transact(groupingInterval, fn)
-      catch innerException
-        if innerException instanceof TransactionAbortedException
-          throw innerException
-        else
-          exceptionToRethrow = innerException
-          @abortTransaction()
-    catch abortException
-      @applyChange(change, true) for change in abortException.transaction.changes
-      throw exceptionToRethrow if exceptionToRethrow?
+      fn()
+      @groupChangesSinceCheckpoint(checkpoint)
+    catch exception
+      @revertToCheckpoint(checkpoint)
+      throw exception unless exception is TransactionAborted
 
-  abortTransaction: -> @history.abortTransaction()
+  abortTransaction: ->
+    throw TransactionAborted
 
-  groupChangesSinceCheckpoint: ->
+  createCheckpoint: ->
+    @history.createCheckpoint()
+
+  groupChangesSinceCheckpoint: (checkpoint) ->
+    @history.groupChangesSinceCheckpoint(checkpoint)
+
+  revertToCheckpoint: (checkpoint) ->
+    @applyChange(change, true) for change in @history.truncateUndoStack(checkpoint)
 
   ###
   Section: Private
