@@ -15,7 +15,7 @@ class TextDisplayDocument
     ]
 
     @layersByIndex = []
-    sourceLayer = @textDocument.getLinesLayer()
+    sourceLayer = @textDocument.linesLayer
     for transform in transforms
       layer = new TransformLayer(sourceLayer, transform)
       @layersByIndex.push(layer)

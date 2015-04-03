@@ -13,12 +13,6 @@ LineEnding = /[\r\n]*$/
 
 module.exports =
 class TextDocument
-  linesLayer: null
-
-  ###
-  Section: Construction
-  ###
-
   constructor: (options) ->
     @history = new History
     @markerStore = new MarkerStore
@@ -27,6 +21,7 @@ class TextDocument
     @destroyed = false
     @encoding = 'utf8'
     @bufferLayer = new BufferLayer(new StringLayer(""))
+    @linesLayer = new TransformLayer(@bufferLayer, new LinesTransform)
     if typeof options is 'string'
       @setText(options)
     else if options?.filePath?
@@ -134,11 +129,11 @@ class TextDocument
   ###
 
   getText: ->
-    @getLinesLayer().slice()
+    @linesLayer.slice()
 
   getTextInRange: (range) ->
     range = Range.fromObject(range)
-    @getLinesLayer().slice(range.start, range.end)
+    @linesLayer.slice(range.start, range.end)
 
   setText: (text) ->
     @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
@@ -149,12 +144,12 @@ class TextDocument
     @applyChange({oldRange, oldText, newText})
 
   lineForRow: (row) ->
-    @getLinesLayer()
+    @linesLayer
       .slice(Point(row, 0), Point(row + 1, 0))
       .replace(LineEnding, "")
 
   lineEndingForRow: (row) ->
-    @getLinesLayer()
+    @linesLayer
       .slice(Point(row, 0), Point(row + 1, 0))
       .match(LineEnding)[0]
 
@@ -182,20 +177,20 @@ class TextDocument
   ###
 
   getLineCount: ->
-    @getLinesLayer().getExtent().row + 1
+    @linesLayer.getExtent().row + 1
 
   getLastRow: ->
     @getLineCount() - 1
 
   clipPosition: (position) ->
     position = Point.fromObject(position)
-    @getLinesLayer().clipPosition(position)
+    @linesLayer.clipPosition(position)
 
   positionForCharacterIndex: (index) ->
-    @getLinesLayer().fromSourcePosition(new Point(0, index))
+    @linesLayer.fromSourcePosition(new Point(0, index))
 
   characterIndexForPosition: (position) ->
-    @getLinesLayer().toSourcePosition(Point.fromObject(position)).column
+    @linesLayer.toSourcePosition(Point.fromObject(position)).column
 
   ###
   Section: History
@@ -221,15 +216,12 @@ class TextDocument
   Section: Private
   ###
 
-  getLinesLayer: ->
-    @linesLayer ?= new TransformLayer(@bufferLayer, new LinesTransform)
-
   applyChange: (change, skipUndo) ->
     {oldRange, newText} = change
     start = oldRange.start
     oldExtent = oldRange.getExtent()
 
-    newExtent = @getLinesLayer().splice(oldRange.start, oldRange.getExtent(), newText)
+    newExtent = @linesLayer.splice(oldRange.start, oldRange.getExtent(), newText)
     @markerStore.splice(oldRange.start, oldExtent, newExtent)
 
     change.newRange ?= Range(start, start.traverse(newExtent))
