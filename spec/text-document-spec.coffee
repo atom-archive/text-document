@@ -189,7 +189,7 @@ describe "TextDocument", ->
         expect(marker.getTailPosition()).toEqual Point(1, 7)
         expect(marker.getProperties()).toEqual {a: '1', invalidate: 'overlap'}
 
-    describe "TextBuffer::findMarkers(properties)", ->
+    describe "::findMarkers(properties)", ->
       [marker1, marker2, marker3, marker4] = []
 
       getIds = (markers) ->
