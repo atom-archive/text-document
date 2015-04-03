@@ -325,15 +325,6 @@ describe "TextDocument", ->
 
       it "calls callbacks registered with ::onDidChange(fn)", ->
 
-  describe "file details", ->
-    describe "encoding", ->
-      it "uses utf8 by default", ->
-        expect(document.getEncoding()).toBe "utf8"
-
-      it "allows the encoding to be set with ::setEncoding(encoding)", ->
-        document.setEncoding("ascii")
-        expect(document.getEncoding()).toBe "ascii"
-
   describe "history", ->
     beforeEach ->
       document.setText("hello\nworld\r\nhow are you doing?")
@@ -519,3 +510,12 @@ describe "TextDocument", ->
         expect(document.getText()).toBe "heyyyyy\nworms\r\nhow are you doing?"
         document.undo()
         expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+  describe "file details", ->
+    describe "encoding", ->
+      it "uses utf8 by default", ->
+        expect(document.getEncoding()).toBe "utf8"
+
+      it "allows the encoding to be set with ::setEncoding(encoding)", ->
+        document.setEncoding("ascii")
+        expect(document.getEncoding()).toBe "ascii"
