@@ -17,6 +17,12 @@ expectMapsSymmetrically = (layer, sourcePosition, position) ->
   expectMapsToSource(layer, sourcePosition, position)
   expectMapsFromSource(layer, sourcePosition, position)
 
+getAllIteratorValues = (iterator) ->
+  values = []
+  until (next = iterator.next()).done
+    values.push(next.value)
+  values
+
 toEqualSet = ->
   compare: (actualSet, expectedItems, customMessage) ->
     result = {pass: true, message: ""}
@@ -43,4 +49,7 @@ setToArray = (set) ->
   set.forEach (item) -> items.push(item)
   items.sort()
 
-module.exports = {currentSpecFailed, expectMapsToSource, expectMapsFromSource, expectMapsSymmetrically, toEqualSet}
+module.exports = {
+  currentSpecFailed, expectMapsToSource, expectMapsFromSource,
+  expectMapsSymmetrically, toEqualSet, getAllIteratorValues
+}

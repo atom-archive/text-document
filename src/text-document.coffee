@@ -7,6 +7,7 @@ BufferLayer = require "./buffer-layer"
 StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
+History = require "./history"
 
 LineEnding = /[\r\n]*$/
 
@@ -19,6 +20,7 @@ class TextDocument
   ###
 
   constructor: (options) ->
+    @history = new History
     @markerStore = new MarkerStore
     @emitter = new Emitter
     @refcount = 1
@@ -143,15 +145,8 @@ class TextDocument
 
   setTextInRange: (oldRange, newText) ->
     oldRange = Range.fromObject(oldRange)
-    linesLayer = @getLinesLayer()
     oldText = @getTextInRange(oldRange)
-    start = linesLayer.toSourcePosition(oldRange.start)
-    end = linesLayer.toSourcePosition(oldRange.end)
-    @bufferLayer.splice(start, end.traversalFrom(start), newText)
-    newRange = new Range(oldRange.start, linesLayer.fromSourcePosition(start.traverse(Point(0, newText.length))))
-    @markerStore.splice(start, end.traversalFrom(start), newRange.end.traversalFrom(start))
-    @emitter.emit("did-change", {oldText, newText, oldRange, newRange})
-    newRange
+    @applyChange({oldRange, oldText, newText})
 
   lineForRow: (row) ->
     @getLinesLayer()
@@ -206,6 +201,14 @@ class TextDocument
   Section: History
   ###
 
+  undo: ->
+    if change = @history.popUndoStack()
+      @applyChange(change, true)
+
+  redo: ->
+    if change = @history.popRedoStack()
+      @applyChange(change, true)
+
   transact: (groupingInterval, fn) ->
     if typeof groupingInterval is 'function'
       fn = groupingInterval
@@ -220,3 +223,19 @@ class TextDocument
 
   getLinesLayer: ->
     @linesLayer ?= new TransformLayer(@bufferLayer, new LinesTransform)
+
+  applyChange: (change, skipUndo) ->
+    {oldRange, newText} = change
+    start = oldRange.start
+    oldExtent = oldRange.getExtent()
+
+    newExtent = @getLinesLayer().splice(oldRange.start, oldRange.getExtent(), newText)
+    @markerStore.splice(oldRange.start, oldExtent, newExtent)
+
+    change.newRange ?= Range(start, start.traverse(newExtent))
+    Object.freeze(change)
+
+    @history.pushChange(change) unless skipUndo
+    @emitter.emit("did-change", change)
+
+    change.newRange

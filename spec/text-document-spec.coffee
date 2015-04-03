@@ -333,3 +333,54 @@ describe "TextDocument", ->
       it "allows the encoding to be set with ::setEncoding(encoding)", ->
         document.setEncoding("ascii")
         expect(document.getEncoding()).toBe "ascii"
+
+  describe "history", ->
+    beforeEach ->
+      document.setText("hello\nworld\r\nhow are you doing?")
+
+    it "can undo and redo changes", ->
+      document.setTextInRange([[0, 5], [0, 5]], " there")
+      document.setTextInRange([[1, 0], [1, 5]], "friend")
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      document.redo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      document.redo()
+      document.redo()
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      document.redo()
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+    it "clears the redo stack upon a fresh change", ->
+      document.setTextInRange([[0, 5], [0, 5]], " there")
+      document.setTextInRange([[1, 0], [1, 5]], "friend")
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.setTextInRange([[1, 3], [1, 5]], "m")
+      expect(document.getText()).toBe "hello there\nworm\r\nhow are you doing?"
+
+      document.redo()
+      expect(document.getText()).toBe "hello there\nworm\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"

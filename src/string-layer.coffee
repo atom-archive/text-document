@@ -7,9 +7,9 @@ class StringLayer extends Layer
     super
 
   buildIterator: ->
-    new Iterator(this)
+    new StringLayerIterator(this)
 
-class Iterator
+class StringLayerIterator
   constructor: (@layer) ->
     @seek(Point.zero())
 
@@ -37,7 +37,9 @@ class Iterator
       content +
       @layer.content.substring(@position.column + oldExtent.column)
 
-    @layer.emitter.emit("did-change", {@position, oldExtent, newExtent: Point(0, content.length)})
+    change = Object.freeze({@position, oldExtent, newExtent: Point(0, content.length)})
+    @position = @position.traverse(Point(0, content.length))
+    @layer.emitter.emit("did-change", change)
 
   assertValidPosition: (position) ->
     unless position.row is 0 and 0 <= position.column <= @layer.content.length

@@ -58,10 +58,10 @@ class TransformLayer extends Layer
 class TransformLayerIterator
   clipping: undefined
 
-  constructor: (@layer, sourceIterator) ->
+  constructor: (@layer, @sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformIterator = new TransformIterator(@layer.transformer, sourceIterator)
+    @transformIterator = new TransformIterator(@layer.transformer, @sourceIterator)
 
   next: ->
     unless (next = @transformIterator.next()).done
@@ -135,6 +135,15 @@ class TransformLayerIterator
       else
         @position = positionWithOvershoot
     @transformIterator.reset(@position, @sourcePosition)
+
+  splice: (extent, content) ->
+    startPosition = @getPosition()
+    sourceStartPosition = @getSourcePosition()
+    @seek(@getPosition().traverse(extent))
+    sourceExtent = @getSourcePosition().traversalFrom(sourceStartPosition)
+    @seekToSourcePosition(sourceStartPosition)
+    @sourceIterator.splice(sourceExtent, content)
+    @seekToSourcePosition(@sourceIterator.getPosition())
 
   getPosition: ->
     @position.copy()
