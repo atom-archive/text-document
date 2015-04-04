@@ -24,7 +24,6 @@ class TransformBuffer
     @outputs = []
     @inputs = []
     @inputIndex = 0
-    @sourceIterator.seek(sourcePosition)
 
   read: ->
     if input = @inputs[@inputIndex]

@@ -73,6 +73,7 @@ class TransformLayerIterator
   seek: (position, clip=CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
+    @sourceIterator.seek(@sourcePosition)
     @transformBuffer.reset(@position, @sourcePosition)
     position = Point.fromObject(position).sanitizeNegatives()
     return if position.isZero()
@@ -101,11 +102,13 @@ class TransformLayerIterator
         else
           @sourcePosition = sourcePositionWithOvershoot
 
+    @sourceIterator.seek(@sourcePosition)
     @transformBuffer.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (sourcePosition, clip = CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
+    @sourceIterator.seek(@sourcePosition)
     @transformBuffer.reset(@position, @sourcePosition)
     sourcePosition = Point.fromObject(sourcePosition).sanitizeNegatives()
     return if sourcePosition.isZero()
@@ -134,6 +137,7 @@ class TransformLayerIterator
         else
           @position = positionWithOvershoot
 
+    @sourceIterator.seek(@sourcePosition)
     @transformBuffer.reset(@position, @sourcePosition)
 
   splice: (extent, content) ->
