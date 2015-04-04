@@ -4,7 +4,7 @@ LinesTransform = require "../src/lines-transform"
 StringLayer = require "../src/string-layer"
 
 describe "TransformLayer", ->
-  describe ".getLines()", ->
+  describe "::getLines()", ->
     it "returns the content as an array of lines", ->
       stringLayer = new StringLayer("\nabc\ndefg\n")
       layer = new TransformLayer(stringLayer, new LinesTransform)
@@ -16,7 +16,7 @@ describe "TransformLayer", ->
         ""
       ]
 
-  describe ".slice(start, end)", ->
+  describe "::slice(start, end)", ->
     it "returns the content between the start and end points", ->
       stringLayer = new StringLayer("\nabc\ndefg\n")
       layer = new TransformLayer(stringLayer, new LinesTransform)
@@ -25,6 +25,28 @@ describe "TransformLayer", ->
       expect(layer.slice(Point(0, 0), Point(1, 1))).toBe "\na"
       expect(layer.slice(Point(1, 1), Point(2, 1))).toBe "bc\nd"
       expect(layer.slice(Point(1, 0), Point(2, 0))).toBe "abc\n"
+
+  describe "::splice(start, extent, content)", ->
+    it "splices into the underlying layer with a translated start and extent", ->
+      stringLayer = new StringLayer("\nabc\ndefg\n")
+      layer = new TransformLayer(stringLayer, new LinesTransform)
+
+      newExtent = layer.splice(Point(1, 2), Point(1, 2), "xyz")
+      expect(newExtent).toEqual Point(0, 3)
+      expect(layer.getLines()).toEqual [
+        "\n"
+        "abxyzfg\n",
+        ""
+      ]
+
+      newExtent = layer.splice(Point(1, 2), Point(0, 0), "123\n4")
+      expect(newExtent).toEqual Point(1, 1)
+      expect(layer.getLines()).toEqual [
+        "\n"
+        "ab123\n"
+        "4xyzfg\n",
+        ""
+      ]
 
   describe "when the source layer's content changes", ->
     it "emits an event and returns content based on the new source content", ->

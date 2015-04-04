@@ -7,24 +7,23 @@ BufferLayer = require "./buffer-layer"
 StringLayer = require "./string-layer"
 LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
+History = require "./history"
+
+TransactionAborted = Symbol("transaction aborted")
 
 LineEnding = /[\r\n]*$/
 
 module.exports =
 class TextDocument
-  linesLayer: null
-
-  ###
-  Section: Construction
-  ###
-
   constructor: (options) ->
+    @history = new History
     @markerStore = new MarkerStore
     @emitter = new Emitter
     @refcount = 1
     @destroyed = false
     @encoding = 'utf8'
     @bufferLayer = new BufferLayer(new StringLayer(""))
+    @linesLayer = new TransformLayer(@bufferLayer, new LinesTransform)
     if typeof options is 'string'
       @setText(options)
     else if options?.filePath?
@@ -132,34 +131,33 @@ class TextDocument
   ###
 
   getText: ->
-    @getLinesLayer().slice()
+    @linesLayer.slice()
 
   getTextInRange: (range) ->
     range = Range.fromObject(range)
-    @getLinesLayer().slice(range.start, range.end)
+    @linesLayer.slice(range.start, range.end)
 
   setText: (text) ->
     @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
 
   setTextInRange: (oldRange, newText) ->
     oldRange = Range.fromObject(oldRange)
-    linesLayer = @getLinesLayer()
     oldText = @getTextInRange(oldRange)
-    start = linesLayer.toSourcePosition(oldRange.start)
-    end = linesLayer.toSourcePosition(oldRange.end)
-    @bufferLayer.splice(start, end.traversalFrom(start), newText)
-    newRange = new Range(oldRange.start, linesLayer.fromSourcePosition(start.traverse(Point(0, newText.length))))
-    @markerStore.splice(start, end.traversalFrom(start), newRange.end.traversalFrom(start))
-    @emitter.emit("did-change", {oldText, newText, oldRange, newRange})
-    newRange
+    @applyChange({oldRange, oldText, newText})
+
+  append: (text) ->
+    @insert(@getEndPosition(), text)
+
+  insert: (position, text) ->
+    @setTextInRange(Range(position, position), text)
 
   lineForRow: (row) ->
-    @getLinesLayer()
+    @linesLayer
       .slice(Point(row, 0), Point(row + 1, 0))
       .replace(LineEnding, "")
 
   lineEndingForRow: (row) ->
-    @getLinesLayer()
+    @linesLayer
       .slice(Point(row, 0), Point(row + 1, 0))
       .match(LineEnding)[0]
 
@@ -187,36 +185,80 @@ class TextDocument
   ###
 
   getLineCount: ->
-    @getLinesLayer().getExtent().row + 1
+    @getEndPosition().row + 1
 
   getLastRow: ->
-    @getLineCount() - 1
+    @getEndPosition().row
+
+  getEndPosition: ->
+    @linesLayer.getExtent()
 
   clipPosition: (position) ->
     position = Point.fromObject(position)
-    @getLinesLayer().clipPosition(position)
+    @linesLayer.clipPosition(position)
 
   positionForCharacterIndex: (index) ->
-    @getLinesLayer().fromSourcePosition(new Point(0, index))
+    @linesLayer.fromSourcePosition(new Point(0, index))
 
   characterIndexForPosition: (position) ->
-    @getLinesLayer().toSourcePosition(Point.fromObject(position)).column
+    @linesLayer.toSourcePosition(Point.fromObject(position)).column
 
   ###
   Section: History
   ###
 
+  undo: ->
+    @applyChange(change, true) for change in @history.popUndoStack()
+
+  redo: ->
+    @applyChange(change, true) for change in @history.popRedoStack()
+
   transact: (groupingInterval, fn) ->
     if typeof groupingInterval is 'function'
       fn = groupingInterval
       groupingInterval = 0
-    fn()
 
-  groupChangesSinceCheckpoint: ->
+    checkpoint = @createCheckpoint()
+    try
+      fn()
+      @groupChangesSinceCheckpoint(checkpoint)
+      @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
+    catch exception
+      @revertToCheckpoint(checkpoint)
+      throw exception unless exception is TransactionAborted
+
+  abortTransaction: ->
+    throw TransactionAborted
+
+  createCheckpoint: ->
+    @history.createCheckpoint()
+
+  groupChangesSinceCheckpoint: (checkpoint) ->
+    @history.groupChangesSinceCheckpoint(checkpoint)
+
+  revertToCheckpoint: (checkpoint) ->
+    if changesToUndo = @history.truncateUndoStack(checkpoint)
+      @applyChange(change, true) for change in changesToUndo
+      true
+    else
+      false
 
   ###
   Section: Private
   ###
 
-  getLinesLayer: ->
-    @linesLayer ?= new TransformLayer(@bufferLayer, new LinesTransform)
+  applyChange: (change, skipUndo) ->
+    {oldRange, newText} = change
+    start = oldRange.start
+    oldExtent = oldRange.getExtent()
+
+    newExtent = @linesLayer.splice(oldRange.start, oldRange.getExtent(), newText)
+    @markerStore.splice(oldRange.start, oldExtent, newExtent)
+
+    change.newRange ?= Range(start, start.traverse(newExtent))
+    Object.freeze(change)
+
+    @history.pushChange(change) unless skipUndo
+    @emitter.emit("did-change", change)
+
+    change.newRange

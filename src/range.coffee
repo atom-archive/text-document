@@ -31,5 +31,8 @@ class Range
     else
       other.end.compare(@end)
 
+  getExtent: ->
+    @end.traversalFrom(@start)
+
   toString: ->
     "(#{@start}, #{@end})"

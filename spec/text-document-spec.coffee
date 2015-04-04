@@ -189,7 +189,7 @@ describe "TextDocument", ->
         expect(marker.getTailPosition()).toEqual Point(1, 7)
         expect(marker.getProperties()).toEqual {a: '1', invalidate: 'overlap'}
 
-    describe "TextBuffer::findMarkers(properties)", ->
+    describe "::findMarkers(properties)", ->
       [marker1, marker2, marker3, marker4] = []
 
       getIds = (markers) ->
@@ -324,6 +324,315 @@ describe "TextDocument", ->
         }])
 
       it "calls callbacks registered with ::onDidChange(fn)", ->
+
+  describe "history", ->
+    beforeEach ->
+      document.setText("hello\nworld\r\nhow are you doing?")
+
+    it "can undo and redo changes", ->
+      document.setTextInRange([[0, 5], [0, 5]], " there")
+      document.setTextInRange([[1, 0], [1, 5]], "friend")
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      document.redo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      document.redo()
+      document.redo()
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      document.redo()
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+    it "clears the redo stack upon a fresh change", ->
+      document.setTextInRange([[0, 5], [0, 5]], " there")
+      document.setTextInRange([[1, 0], [1, 5]], "friend")
+      expect(document.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.setTextInRange([[1, 3], [1, 5]], "m")
+      expect(document.getText()).toBe "hello there\nworm\r\nhow are you doing?"
+
+      document.redo()
+      expect(document.getText()).toBe "hello there\nworm\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      document.undo()
+      expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+    describe "transactions", ->
+      beforeEach ->
+        document.setTextInRange([[1, 3], [1, 5]], 'ms')
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+      it "groups all operations performed within the given function into a single undo/redo operation", ->
+        document.transact ->
+          document.setTextInRange([[0, 2], [0, 5]], "y")
+          document.setTextInRange([[2, 13], [2, 14]], "igg")
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        # subsequent changes are not included in the transaction
+        document.setTextInRange([[1, 0], [1, 0]], "little ")
+        document.undo()
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        # this should undo all changes in the transaction
+        document.undo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        # previous changes are not included in the transaction
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        # this should redo all changes in the transaction
+        document.redo()
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        # this should redo the change following the transaction
+        document.redo()
+        expect(document.getText()).toBe "hey\nlittle worms\r\nhow are you digging?"
+
+      it "does not push the transaction to the undo stack if it is empty", ->
+        document.transact ->
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        document.transact -> document.abortTransaction()
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "halts execution undoes all operations since the beginning of the transaction if ::abortTransaction() is called", ->
+        continuedPastAbort = false
+        document.transact ->
+          document.setTextInRange([[0, 2], [0, 5]], "y")
+          document.setTextInRange([[2, 13], [2, 14]], "igg")
+          document.abortTransaction()
+          continuedPastAbort = true
+
+        expect(continuedPastAbort).toBe false
+
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+      it "preserves the redo stack until a content change occurs", ->
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        # no changes occur in this transaction before aborting
+        document.transact ->
+          document.markRange([[0, 0], [0, 5]])
+          document.abortTransaction()
+          document.setTextInRange([[0, 0], [0, 5]], "hey")
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.transact ->
+          document.setTextInRange([[0, 0], [0, 5]], "hey")
+          document.abortTransaction()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "allows nested transactions", ->
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.transact ->
+          document.setTextInRange([[0, 2], [0, 5]], "y")
+          document.transact ->
+            document.setTextInRange([[2, 13], [2, 14]], "igg")
+            document.setTextInRange([[2, 18], [2, 19]], "'")
+          expect(document.getText()).toBe "hey\nworms\r\nhow are you diggin'?"
+          document.undo()
+          expect(document.getText()).toBe "hey\nworms\r\nhow are you doing?"
+          document.redo()
+          expect(document.getText()).toBe "hey\nworms\r\nhow are you diggin'?"
+
+        document.undo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        document.redo()
+        expect(document.getText()).toBe "hey\nworms\r\nhow are you diggin'?"
+
+        document.undo()
+        document.undo()
+        expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "groups adjacent transactions within each other's grouping intervals", ->
+        now = 0
+        spyOn(Date, 'now').and.callFake -> now
+
+        document.transact 100, -> document.setTextInRange([[0, 2], [0, 5]], "y")
+        now += 100
+        document.transact 200, -> document.setTextInRange([[0, 3], [0, 3]], "yy")
+        now += 200
+        document.transact 200, -> document.setTextInRange([[0, 5], [0, 5]], "yy")
+
+        # not grouped because the previous transaction's grouping interval
+        # is only 200ms and we've advanced 300ms
+        now += 300
+        document.transact 300, -> document.setTextInRange([[0, 7], [0, 7]], "!!")
+
+        expect(document.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
+        document.undo()
+        expect(document.getText()).toBe "heyyyyy\nworms\r\nhow are you doing?"
+        document.undo()
+        expect(document.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+    describe "checkpoints", ->
+      beforeEach ->
+        document.setText("")
+
+      describe "::revertToCheckpoint(checkpoint)", ->
+        it "undoes all changes following the checkpoint", ->
+          document.append("hello")
+          checkpoint = document.createCheckpoint()
+
+          document.transact ->
+            document.append("\n")
+            document.append("world")
+
+          checkpoint2 = document.createCheckpoint()
+
+          document.append("\n")
+          document.append("how are you?")
+
+          result = document.revertToCheckpoint(checkpoint)
+          expect(result).toBe(true)
+          expect(document.getText()).toBe("hello")
+
+          return
+
+          result = document.revertToCheckpoint(checkpoint2)
+          expect(result).toBe(false)
+
+          document.undo()
+          expect(document.getText()).toBe("")
+
+          document.redo()
+          expect(document.getText()).toBe("hello")
+
+      describe "::groupChangesSinceCheckpoint(checkpoint)", ->
+        it "combines all changes since the checkpoint into a single transaction", ->
+          document.append("one\n")
+          checkpoint = document.createCheckpoint()
+          document.append("two\n")
+          checkpoint2 = document.createCheckpoint()
+          document.transact ->
+            document.append("three\n")
+            document.append("four")
+
+          result = document.groupChangesSinceCheckpoint(checkpoint)
+          expect(result).toBe true
+
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+            four
+          """
+
+          result = document.groupChangesSinceCheckpoint(checkpoint2)
+          expect(result).toBe false
+
+          document.undo()
+          expect(document.getText()).toBe("one\n")
+
+          document.redo()
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+            four
+          """
+
+        it "skips any later checkpoints when grouping changes", ->
+          document.append("one\n")
+          checkpoint = document.createCheckpoint()
+          document.append("two\n")
+          checkpoint2 = document.createCheckpoint()
+          document.append("three")
+
+          document.groupChangesSinceCheckpoint(checkpoint)
+          expect(document.revertToCheckpoint(checkpoint2)).toBe(false)
+
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+          """
+
+          document.undo()
+          expect(document.getText()).toBe("one\n")
+
+          document.redo()
+          expect(document.getText()).toBe """
+            one
+            two
+            three
+          """
+
+      it "skips checkpoints when undoing", ->
+        document.append("hello")
+        document.createCheckpoint()
+        document.createCheckpoint()
+        document.createCheckpoint()
+        document.undo()
+        expect(document.getText()).toBe("")
+
+      it "preserves checkpoints across undo and redo", ->
+        document.append("hello\n")
+        checkpoint = document.createCheckpoint()
+        document.undo()
+        expect(document.getText()).toBe("")
+        document.redo()
+        expect(document.getText()).toBe("hello\n")
+        document.append("world")
+
+        expect(document.revertToCheckpoint(checkpoint)).toBe true
+        expect(document.getText()).toBe("hello\n")
+
+      it "handles checkpoints created when there have been no changes", ->
+        document = new TextDocument
+        checkpoint1 = document.createCheckpoint()
+        checkpoint2 = document.createCheckpoint()
+        document.undo()
+        document.append("hello")
+        expect(document.revertToCheckpoint(checkpoint2)).toBe true
+        expect(document.revertToCheckpoint(checkpoint1)).toBe true
+        expect(document.getText()).toBe("")
 
   describe "file details", ->
     describe "encoding", ->

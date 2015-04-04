@@ -3,6 +3,7 @@ StringLayer = require "../src/string-layer"
 BufferLayer = require "../src/buffer-layer"
 SpyLayer = require "./spy-layer"
 Random = require "random-seed"
+{getAllIteratorValues} = require "./spec-helper"
 
 describe "BufferLayer", ->
   describe "::slice(start, end)", ->
@@ -24,65 +25,72 @@ describe "BufferLayer", ->
       expect(buffer.slice()).toBe "abcdefghijkl"
       expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
 
-  describe "::splice(start, extent, content)", ->
-    it "replaces the extent at the given position with the given content", ->
-      source = new SpyLayer("abcdefghijkl", 3)
-      buffer = new BufferLayer(source)
+  describe "iterator", ->
+    describe "::next()", ->
+      it "reads from the underlying layer", ->
+        source = new SpyLayer("abcdefghijkl", 3)
+        buffer = new BufferLayer(source)
+        iterator = buffer.buildIterator()
+        iterator.seek(Point(0, 3))
 
-      buffer.splice(Point(0, 2), Point(0, 3), "123")
+        expect(iterator.next()).toEqual(value:"def", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 6))
 
-      expect(buffer.slice()).toBe "ab123fghijkl"
+        expect(iterator.next()).toEqual(value:"ghi", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 9))
 
-  describe "iteration", ->
-    it "returns an iterator into the buffer", ->
-      source = new SpyLayer("abcdefghijkl", 3)
-      buffer = new BufferLayer(source)
-      iterator = buffer.buildIterator()
-      iterator.seek(Point(0, 3))
+        expect(iterator.next()).toEqual(value:"jkl", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 12))
 
-      expect(iterator.next()).toEqual(value:"def", done: false)
-      expect(iterator.getPosition()).toEqual(Point(0, 6))
+        expect(iterator.next()).toEqual(value: undefined, done: true)
+        expect(iterator.getPosition()).toEqual(Point(0, 12))
 
-      expect(iterator.next()).toEqual(value:"ghi", done: false)
-      expect(iterator.getPosition()).toEqual(Point(0, 9))
+        expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", undefined]
+        source.reset()
 
-      expect(iterator.next()).toEqual(value:"jkl", done: false)
-      expect(iterator.getPosition()).toEqual(Point(0, 12))
+        iterator.seek(Point(0, 5))
+        expect(iterator.next()).toEqual(value:"fgh", done: false)
 
-      expect(iterator.next()).toEqual(value: undefined, done: true)
-      expect(iterator.getPosition()).toEqual(Point(0, 12))
+      describe "when the buffer has an active region", ->
+        it "caches the text within the region", ->
+          source = new SpyLayer("abcdefghijkl", 3)
+          buffer = new BufferLayer(source)
 
-      expect(source.getRecordedReads()).toEqual ["def", "ghi", "jkl", undefined]
-      source.reset()
+          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
+          expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+          source.reset()
 
-      iterator.seek(Point(0, 5))
-      expect(iterator.next()).toEqual(value:"fgh", done: false)
+          getAllIteratorValues(buffer.buildIterator())
+          expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+          source.reset()
 
-  describe "::setActiveRegion(start, end)", ->
-    it "causes the buffer to cache the text within the given boundaries", ->
-      source = new SpyLayer("abcdefghijkl", 3)
-      buffer = new BufferLayer(source)
+          buffer.setActiveRegion(Point(0, 4), Point(0, 7))
 
-      expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-      source.reset()
+          getAllIteratorValues(buffer.buildIterator())
+          expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+          source.reset()
 
-      expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-      source.reset()
+          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
+          expect(source.getRecordedReads()).toEqual ["abc", "jkl", undefined]
 
-      buffer.setActiveRegion(Point(0, 4), Point(0, 7))
+    describe "::splice(start, extent, content)", ->
+      it "replaces the extent at the given position with the given content", ->
+        source = new SpyLayer("abcdefghijkl", 3)
+        buffer = new BufferLayer(source)
 
-      expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-      source.reset()
+        iterator = buffer.buildIterator()
+        iterator.seek(Point(0, 2))
+        iterator.splice(Point(0, 3), "1234")
 
-      expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(source.getRecordedReads()).toEqual ["abc", "jkl", undefined]
-      source.reset()
+        expect(iterator.getPosition()).toEqual Point(0, 6)
+        expect(iterator.getSourcePosition()).toEqual Point(0, 5)
+        expect(iterator.next()).toEqual {value: "fgh", done: false}
 
-      expect(buffer.slice(Point(0, 0), Point(0, 6))).toBe "abcdef"
-      expect(source.getRecordedReads()).toEqual ["abc"]
+        expect(buffer.slice()).toBe "ab1234fghijkl"
+
+        iterator.seek(Point(0, 11))
+        iterator.splice(Point(0, 3), "HELLO")
+        expect(buffer.slice()).toBe "ab1234fghijHELLO"
 
   describe "randomized mutations", ->
     it "behaves as if it were reading and writing directly to the underlying layer", ->

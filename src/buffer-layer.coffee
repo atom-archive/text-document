@@ -11,7 +11,7 @@ class BufferLayer extends Layer
     @activeRegionEnd = null
 
   buildIterator: ->
-    new Iterator(this, @source.buildIterator(), @patch.buildIterator())
+    new BufferLayerIterator(this, @source.buildIterator(), @patch.buildIterator())
 
   setActiveRegion: (start, end) ->
     @activeRegionStart = start
@@ -22,7 +22,7 @@ class BufferLayer extends Layer
     not (column + content.length < @activeRegionStart.column) and
       not (column > @activeRegionEnd.column)
 
-class Iterator
+class BufferLayerIterator
   constructor: (@layer, @sourceIterator, @regionMapIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
@@ -65,6 +65,11 @@ class Iterator
   getPosition: ->
     @position.copy()
 
+  getSourcePosition: ->
+    @sourcePosition.copy()
+
   splice: (extent, content) ->
-    @regionMapIterator.seek(@position)
     @regionMapIterator.splice(extent, content)
+    @position = @regionMapIterator.getPosition()
+    @sourcePosition = @regionMapIterator.getSourcePosition()
+    @sourceIterator.seek(@sourcePosition)

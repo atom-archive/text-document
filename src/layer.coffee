@@ -54,3 +54,4 @@ class Layer
     iterator = @buildIterator()
     iterator.seek(start)
     iterator.splice(extent, content)
+    iterator.getPosition().traversalFrom(start)

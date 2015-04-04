@@ -58,10 +58,10 @@ class TransformLayer extends Layer
 class TransformLayerIterator
   clipping: undefined
 
-  constructor: (@layer, sourceIterator) ->
+  constructor: (@layer, @sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformIterator = new TransformIterator(@layer.transformer, sourceIterator)
+    @transformIterator = new TransformIterator(@layer.transformer, @sourceIterator)
 
   next: ->
     unless (next = @transformIterator.next()).done
@@ -77,30 +77,30 @@ class TransformLayerIterator
     position = Point.fromObject(position).sanitizeNegatives()
     return if position.isZero()
 
-    until @position.compare(position) >= 0
+    done = overshot = false
+    until done or overshot
       lastPosition = @position
       lastSourcePosition = @sourcePosition
       {done} = @next()
-      return if done
+      switch @position.compare(position)
+        when 0 then done = true
+        when 1 then overshot = true
 
-    if @clipping? and @position.compare(position) > 0
-      switch clip
-        when CLIP_FORWARD
-          return
-        when CLIP_BACKWARD
+    if overshot
+      if @clipping?
+        if clip is CLIP_BACKWARD
           @position = lastPosition
           @sourcePosition = lastSourcePosition
-          return
-
-    unless @position.compare(position) is 0
-      @position = position
-      overshoot = position.traversalFrom(lastPosition)
-      sourcePositionWithOvershoot = lastSourcePosition.traverse(overshoot)
-      if sourcePositionWithOvershoot.compare(@sourcePosition) >= 0
-        if clip is CLIP_BACKWARD
-          @sourcePosition = @sourcePosition.traverse(Point(0, -1))
       else
-        @sourcePosition = sourcePositionWithOvershoot
+        @position = position
+        overshoot = position.traversalFrom(lastPosition)
+        sourcePositionWithOvershoot = lastSourcePosition.traverse(overshoot)
+        if sourcePositionWithOvershoot.compare(@sourcePosition) >= 0
+          if clip is CLIP_BACKWARD
+            @sourcePosition = @sourcePosition.traverse(Point(0, -1))
+        else
+          @sourcePosition = sourcePositionWithOvershoot
+
     @transformIterator.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (sourcePosition, clip = CLIP_BACKWARD) ->
@@ -110,31 +110,40 @@ class TransformLayerIterator
     sourcePosition = Point.fromObject(sourcePosition).sanitizeNegatives()
     return if sourcePosition.isZero()
 
-    until @sourcePosition.compare(sourcePosition) >= 0
+    done = overshot = false
+    until done or overshot
       lastPosition = @position
       lastSourcePosition = @sourcePosition
       {done} = @next()
-      return if done
+      switch @sourcePosition.compare(sourcePosition)
+        when 0 then done = true
+        when 1 then overshot = true
 
-    if @clipping? and @sourcePosition.compare(sourcePosition) > 0
-      switch clip
-        when CLIP_FORWARD
-          return
-        when CLIP_BACKWARD
+    if overshot
+      if @clipping?
+        if clip is CLIP_BACKWARD
           @position = lastPosition
           @sourcePosition = lastSourcePosition
-          return
-
-    unless @sourcePosition.compare(sourcePosition) is 0
-      @sourcePosition = sourcePosition
-      overshoot = sourcePosition.traversalFrom(lastSourcePosition)
-      positionWithOvershoot = lastPosition.traverse(overshoot)
-      if positionWithOvershoot.compare(@position) >= 0
-        if clip is CLIP_BACKWARD
-          @position = @position.traverse(Point(0, -1))
       else
-        @position = positionWithOvershoot
+        @sourcePosition = sourcePosition
+        overshoot = sourcePosition.traversalFrom(lastSourcePosition)
+        positionWithOvershoot = lastPosition.traverse(overshoot)
+        if positionWithOvershoot.compare(@position) >= 0
+          if clip is CLIP_BACKWARD
+            @position = @position.traverse(Point(0, -1))
+        else
+          @position = positionWithOvershoot
+
     @transformIterator.reset(@position, @sourcePosition)
+
+  splice: (extent, content) ->
+    startPosition = @getPosition()
+    sourceStartPosition = @getSourcePosition()
+    @seek(@getPosition().traverse(extent))
+    sourceExtent = @getSourcePosition().traversalFrom(sourceStartPosition)
+    @seekToSourcePosition(sourceStartPosition)
+    @sourceIterator.splice(sourceExtent, content)
+    @seekToSourcePosition(@sourceIterator.getPosition())
 
   getPosition: ->
     @position.copy()
