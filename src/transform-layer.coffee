@@ -1,6 +1,6 @@
 Layer = require "./layer"
 Point = require "./point"
-TransformIterator = require './transform-iterator'
+TransformBuffer = require './transform-buffer'
 
 CLIP_FORWARD = Symbol('clip forward')
 CLIP_BACKWARD = Symbol('clip backward')
@@ -61,19 +61,19 @@ class TransformLayerIterator
   constructor: (@layer, @sourceIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformIterator = new TransformIterator(@layer.transformer, @sourceIterator)
+    @transformBuffer = new TransformBuffer(@layer.transformer, @sourceIterator)
 
   next: ->
-    unless (next = @transformIterator.next()).done
-      @position = @transformIterator.getPosition()
-      @sourcePosition = @transformIterator.getSourcePosition()
-      @clipping = @transformIterator.getClippingStatus()
-    next
+    if next = @transformBuffer.next()
+      {content, @position, @sourcePosition, @clipping} = next
+      {value: content, done: false}
+    else
+      {value: undefined, done: true}
 
   seek: (position, clip=CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformIterator.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
     position = Point.fromObject(position).sanitizeNegatives()
     return if position.isZero()
 
@@ -101,12 +101,12 @@ class TransformLayerIterator
         else
           @sourcePosition = sourcePositionWithOvershoot
 
-    @transformIterator.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
 
   seekToSourcePosition: (sourcePosition, clip = CLIP_BACKWARD) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
-    @transformIterator.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
     sourcePosition = Point.fromObject(sourcePosition).sanitizeNegatives()
     return if sourcePosition.isZero()
 
@@ -134,7 +134,7 @@ class TransformLayerIterator
         else
           @position = positionWithOvershoot
 
-    @transformIterator.reset(@position, @sourcePosition)
+    @transformBuffer.reset(@position, @sourcePosition)
 
   splice: (extent, content) ->
     startPosition = @getPosition()

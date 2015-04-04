@@ -3,30 +3,6 @@ Point = require "./point"
 CLIPPING__OPEN_INTERVAL = Symbol('clipping (open interval)')
 
 module.exports =
-class TransformIterator
-  constructor: (transform, sourceIterator) ->
-    @transformBuffer = new TransformBuffer(transform, sourceIterator)
-
-  next: ->
-    next = @transformBuffer.operate()
-    if next
-      {content, @clipping, @position, @sourcePosition} = next
-      {value: content, done: false}
-    else
-      {value: undefined, done: true}
-
-  reset: (position, sourcePosition) ->
-    @transformBuffer.reset(position, sourcePosition)
-
-  getPosition: ->
-    @position.copy()
-
-  getSourcePosition: ->
-    @sourcePosition.copy()
-
-  getClippingStatus: ->
-    @clipping
-
 class TransformBuffer
   constructor: (@transformer, @sourceIterator) ->
     @reset(Point.zero(), Point.zero())
@@ -37,7 +13,7 @@ class TransformBuffer
       transform: @transform.bind(this)
     }
 
-  operate: ->
+  next: ->
     @inputIndex = 0
     @transformer.operate(@transformContext) unless @outputs.length > 0
     @outputs.shift()
