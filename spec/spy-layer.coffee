@@ -8,7 +8,7 @@ class SpyLayer extends Layer
     @reset()
 
   buildIterator: ->
-    new Iterator(this)
+    new SpyLayerIterator(this)
 
   reset: ->
     @recordedReads = []
@@ -16,7 +16,7 @@ class SpyLayer extends Layer
   getRecordedReads: ->
     @recordedReads
 
-class Iterator
+class SpyLayerIterator
   constructor: (@layer) ->
     @position = Point.zero()
 

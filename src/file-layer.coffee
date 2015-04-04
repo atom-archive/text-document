@@ -11,7 +11,7 @@ class FileLayer
     fs.close(@fd)
 
   buildIterator: ->
-    new Iterator(this)
+    new FileLayerIterator(this)
 
   getChunk: (byteOffset) ->
     bytesRead = fs.readSync(@fd, @buffer, 0, @buffer.length, byteOffset)
@@ -20,7 +20,7 @@ class FileLayer
     else
       null
 
-class Iterator
+class FileLayerIterator
   constructor: (@store) ->
     @bytePosition = 0
     @position = Point.zero()
