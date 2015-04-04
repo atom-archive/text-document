@@ -198,10 +198,10 @@ class TextDocument
     @linesLayer.clipPosition(position)
 
   positionForCharacterIndex: (index) ->
-    @linesLayer.fromSourcePosition(new Point(0, index))
+    @linesLayer.fromInputPosition(new Point(0, index))
 
   characterIndexForPosition: (position) ->
-    @linesLayer.toSourcePosition(Point.fromObject(position)).column
+    @linesLayer.toInputPosition(Point.fromObject(position)).column
 
   ###
   Section: History
