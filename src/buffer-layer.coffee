@@ -23,43 +23,43 @@ class BufferLayer extends Layer
       not (column > @activeRegionEnd.column)
 
 class BufferLayerIterator
-  constructor: (@layer, @sourceIterator, @regionMapIterator) ->
+  constructor: (@layer, @sourceIterator, @patchIterator) ->
     @position = Point.zero()
     @sourcePosition = Point.zero()
 
   next: ->
-    comparison = @regionMapIterator.getPosition().compare(@position)
+    comparison = @patchIterator.getPosition().compare(@position)
     if comparison <= 0
-      @regionMapIterator.seek(@position) if comparison < 0
-      next = @regionMapIterator.next()
+      @patchIterator.seek(@position) if comparison < 0
+      next = @patchIterator.next()
       if next.value?
-        @position = @regionMapIterator.getPosition()
-        @sourcePosition = @regionMapIterator.getSourcePosition()
+        @position = @patchIterator.getPosition()
+        @sourcePosition = @patchIterator.getSourcePosition()
         return {value: next.value, done: next.done}
 
     @sourceIterator.seek(@sourcePosition)
     next = @sourceIterator.next()
     nextSourcePosition = @sourceIterator.getPosition()
 
-    sourceOvershoot = @sourceIterator.getPosition().traversalFrom(@regionMapIterator.getSourcePosition())
+    sourceOvershoot = @sourceIterator.getPosition().traversalFrom(@patchIterator.getSourcePosition())
     if sourceOvershoot.compare(Point.zero()) > 0
       next.value = next.value.substring(0, next.value.length - sourceOvershoot.column)
-      nextPosition = @regionMapIterator.getPosition()
+      nextPosition = @patchIterator.getPosition()
     else
       nextPosition = @position.traverse(nextSourcePosition.traversalFrom(@sourcePosition))
 
     if next.value? and @layer.contentOverlapsActiveRegion(@position, next.value)
-      @regionMapIterator.seek(@position)
+      @patchIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
-      @regionMapIterator.splice(extent, next.value)
+      @patchIterator.splice(extent, next.value)
 
     @sourcePosition = nextSourcePosition
     @position = nextPosition
     next
 
   seek: (@position) ->
-    @regionMapIterator.seek(@position)
-    @sourcePosition = @regionMapIterator.getSourcePosition()
+    @patchIterator.seek(@position)
+    @sourcePosition = @patchIterator.getSourcePosition()
     @sourceIterator.seek(@sourcePosition)
 
   getPosition: ->
@@ -69,7 +69,7 @@ class BufferLayerIterator
     @sourcePosition.copy()
 
   splice: (extent, content) ->
-    @regionMapIterator.splice(extent, content)
-    @position = @regionMapIterator.getPosition()
-    @sourcePosition = @regionMapIterator.getSourcePosition()
+    @patchIterator.splice(extent, content)
+    @position = @patchIterator.getPosition()
+    @sourcePosition = @patchIterator.getSourcePosition()
     @sourceIterator.seek(@sourcePosition)
