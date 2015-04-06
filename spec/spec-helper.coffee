@@ -1,4 +1,5 @@
 require 'coffee-cache'
+_ = require 'underscore-plus'
 
 Marker = require "../src/marker"
 Marker::jasmineToString = -> @toString()
@@ -6,6 +7,8 @@ Marker::jasmineToString = -> @toString()
 currentSpecResult = null
 jasmine.getEnv().addReporter specStarted: (result) -> currentSpecResult = result
 currentSpecFailed = -> currentSpecResult.failedExpectations.length > 0
+
+beforeEach -> jasmine.addCustomEqualityTester(_.isEqual)
 
 expectMapsToSource = (layer, sourcePosition, position, clip) ->
   expect(layer.toSourcePosition(position, clip)).toEqual(sourcePosition)

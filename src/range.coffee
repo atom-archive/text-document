@@ -19,7 +19,8 @@ class Range
     @end = Point.fromObject(end)
 
   isEqual: (other) ->
-    @start is other.start and @end is other.end
+    other = Range.fromObject(other)
+    @start.isEqual(other.start) and @end.isEqual(other.end)
 
   isEmpty: ->
     @start.compare(@end) is 0
