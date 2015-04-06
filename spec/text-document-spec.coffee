@@ -355,6 +355,12 @@ describe "TextDocument", ->
         document.setTextInRange([[1, 1], [1, 3]], 'i')
         expect(document.lineEndingForRow(1)).toBe '\r\n'
 
+    describe "::delete(range)", ->
+      it "deletes the text in the given range", ->
+        document.setText("abcd")
+        document.delete([[0, 1], [0, 3]])
+        expect(document.getText()).toBe "ad"
+
   describe "history", ->
     beforeEach ->
       document.setText("hello\nworld\r\nhow are you doing?")

@@ -156,6 +156,9 @@ class TextDocument
   insert: (position, text) ->
     @setTextInRange(Range(position, position), text)
 
+  delete: (range) ->
+    @setTextInRange(range, "")
+
   lineForRow: (row) ->
     @linesLayer
       .slice(Point(row, 0), Point(row + 1, 0))
