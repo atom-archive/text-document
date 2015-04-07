@@ -94,6 +94,22 @@ class MarkerStore
   splice: (start, oldExtent, newExtent) ->
     @index.splice(start, oldExtent, newExtent)
 
+  updateMarkers: (oldSnapshots, newSnapshots) ->
+    for id, marker of @markersById
+      continue unless oldSnapshot = oldSnapshots[id]
+      continue unless newSnapshot = newSnapshots[id]
+      marker.updateFromSnapshots(oldSnapshot, newSnapshot)
+
+  createSnapshot: ->
+    markerSnapshots = @index.dump()
+    for id, marker of @markersById
+      snapshot = markerSnapshots[id]
+      delete snapshot.isExclusive
+      snapshot.reversed = marker.isReversed()
+      snapshot.tailed = marker.hasTail()
+      snapshot.valid = marker.isValid()
+    markerSnapshots
+
   ###
   Section: Marker API
   ###

@@ -128,6 +128,35 @@ class Marker
     else
       false
 
+  updateFromSnapshots: (oldSnapshot, newSnapshot) ->
+    oldRange = oldSnapshot.range
+    if oldSnapshot.reversed
+      oldHeadPosition = oldRange.start
+      oldTailPosition = oldRange.end
+    else
+      oldHeadPosition = oldRange.end
+      oldTailPosition = oldRange.start
+
+    newRange = newSnapshot.range
+    if newSnapshot.reversed
+      newHeadPosition = newRange.start
+      newTailPosition = newRange.end
+    else
+      newHeadPosition = newRange.end
+      newTailPosition = newRange.start
+
+    @emitter.emit("did-change", {
+      wasValid: oldSnapshot.valid
+      isValid: newSnapshot.valid
+      hadTail: oldSnapshot.tailed
+      hasTail: newSnapshot.tailed
+      oldProperties: clone(@properties)
+      newProperties: clone(@properties)
+      oldHeadPosition, newHeadPosition
+      oldTailPosition, newTailPosition
+      textChanged: true
+    })
+
   isValid: -> true
 
   matchesParams: (params) ->

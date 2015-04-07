@@ -578,6 +578,103 @@ describe "TextDocument", ->
           marker.setProperties(bar: 2)
           expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
 
+    describe "indirect updates (due to text changes)", ->
+      [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker] = []
+
+      beforeEach ->
+        document.setText("abcdefghijklmnopqrstuvwxyz")
+        overlapMarker = document.markRange([[0, 6], [0, 9]], invalidate: 'overlap')
+        neverMarker = overlapMarker.copy(invalidate: 'never')
+        surroundMarker = overlapMarker.copy(invalidate: 'surround')
+        insideMarker = overlapMarker.copy(invalidate: 'inside')
+        touchMarker = overlapMarker.copy(invalidate: 'touch')
+        allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker]
+
+      it "defers notifying Marker::onDidChange observers until after notifying Buffer::onDidChange observers", ->
+        for marker in allStrategies
+          do (marker) ->
+            marker.changes = []
+            marker.onDidChange (change) ->
+              marker.changes.push(change)
+
+        changedCount = 0
+        markersUpdatedCount = 0
+        document.onDidUpdateMarkers -> markersUpdatedCount++
+
+        changeSubscription =
+          document.onDidChange (change) ->
+            changedCount++
+            expect(markersUpdatedCount).toBe 0
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+              expect(marker.isValid()).toBe true
+              expect(marker.changes.length).toBe 0
+
+        document.setTextInRange([[0, 1], [0, 2]], "ABC")
+
+        expect(changedCount).toBe 1
+        expect(markersUpdatedCount).toBe 1
+        for marker in allStrategies
+          expect(marker.changes.length).toBe 1
+          expect(marker.changes[0]).toEqual {
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
+            oldTailPosition: [0, 6], newTailPosition: [0, 8]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: true
+          }
+
+        changeSubscription.dispose()
+        changeSubscription =
+          document.onDidChange (change) ->
+            changedCount++
+            expect(markersUpdatedCount).toBe 1
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+              expect(marker.changes.length).toBe 1
+
+        document.undo()
+
+        expect(changedCount).toBe 2
+        expect(markersUpdatedCount).toBe 2
+        for marker in allStrategies
+          expect(marker.changes.length).toBe 2
+          expect(marker.changes[1]).toEqual {
+            oldHeadPosition: [0, 11], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 8], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: true
+          }
+
+        changeSubscription.dispose()
+        changeSubscription =
+          document.onDidChange (change) ->
+            changedCount++
+            expect(markersUpdatedCount).toBe 2
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+              expect(marker.isValid()).toBe true
+              expect(marker.changes.length).toBe 2
+
+        document.redo()
+
+        expect(changedCount).toBe 3
+        expect(markersUpdatedCount).toBe 3
+        for marker in allStrategies
+          expect(marker.changes.length).toBe 3
+          expect(marker.changes[2]).toEqual {
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
+            oldTailPosition: [0, 6], newTailPosition: [0, 8]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: true
+          }
+
     describe "Marker::destroy", ->
       it "removes the marker and calls callbacks registered with ::onDidDestroy", ->
         marker = document.markPosition([0, 6], a: '1')

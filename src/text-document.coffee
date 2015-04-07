@@ -16,6 +16,7 @@ LineEnding = /[\r\n]*$/
 module.exports =
 class TextDocument
   constructor: (options) ->
+    @transactCallDepth = 0
     @history = new History
     @markerStore = new MarkerStore(this)
     @emitter = new Emitter
@@ -144,6 +145,8 @@ class TextDocument
     @bufferLayer.splice(Point.zero(), @bufferLayer.getExtent(), text)
 
   setTextInRange: (oldRange, newText) ->
+    unless @transactCallDepth > 0
+      return @transact => @setTextInRange(oldRange, newText)
     oldRange = Range.fromObject(oldRange)
     oldRange.start = @clipPosition(oldRange.start)
     oldRange.end = @clipPosition(oldRange.end)
@@ -225,24 +228,40 @@ class TextDocument
   ###
 
   undo: ->
-    @applyChange(change, true) for change in @history.popUndoStack()
+    {changes, metadata: markerSnapshot} = @history.popUndoStack(@currentMarkerSnapshot)
+    @applyChange(change, true) for change in changes
+    @updateMarkers(@currentMarkerSnapshot, markerSnapshot)
+    @currentMarkerSnapshot = markerSnapshot
 
   redo: ->
-    @applyChange(change, true) for change in @history.popRedoStack()
+    {changes, metadata: markerSnapshot} = @history.popRedoStack()
+    @applyChange(change, true) for change in changes
+    @updateMarkers(@currentMarkerSnapshot, markerSnapshot)
+    @currentMarkerSnapshot = markerSnapshot
 
   transact: (groupingInterval, fn) ->
     if typeof groupingInterval is 'function'
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpoint = @createCheckpoint()
+    oldMarkerSnapshot = @currentMarkerSnapshot ?= @markerStore.createSnapshot()
+    checkpoint = @history.createCheckpoint(@currentMarkerSnapshot)
+
     try
-      fn()
-      @groupChangesSinceCheckpoint(checkpoint)
-      @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
+      @transactCallDepth++
+      result = fn()
     catch exception
       @revertToCheckpoint(checkpoint)
       throw exception unless exception is TransactionAborted
+      return
+    finally
+      @transactCallDepth--
+
+    @history.groupChangesSinceCheckpoint(checkpoint)
+    @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
+    @currentMarkerSnapshot = @markerStore.createSnapshot()
+    @updateMarkers(oldMarkerSnapshot, @currentMarkerSnapshot, false)
+    result
 
   abortTransaction: ->
     throw TransactionAborted
@@ -263,6 +282,10 @@ class TextDocument
   ###
   Section: Private
   ###
+
+  updateMarkers: (oldSnapshot, newSnapshot, updateRanges=true) ->
+    @markerStore.updateMarkers(oldSnapshot, newSnapshot, updateRanges)
+    @emitter.emit("did-update-markers")
 
   markerCreated: (marker) ->
     @emitter.emit("did-create-marker", marker)

@@ -1,7 +1,7 @@
 counter = 1
 
 class Checkpoint
-  constructor: ->
+  constructor: (@metadata) ->
     @id = counter++
 
 module.exports =
@@ -10,8 +10,8 @@ class History
     @undoStack = []
     @redoStack = []
 
-  createCheckpoint: ->
-    checkpoint = new Checkpoint
+  createCheckpoint: (metadata) ->
+    checkpoint = new Checkpoint(metadata)
     @undoStack.push(checkpoint)
     checkpoint
 
@@ -47,32 +47,14 @@ class History
     @undoStack.push(new Checkpoint, change)
     @redoStack.length = 0
 
-  popUndoStack: ->
-    firstChangeIndex = null
-    for entry, i in @undoStack by -1
-      if entry instanceof Checkpoint
-        break if firstChangeIndex?
-      else
-        firstChangeIndex = i
-
-    return [] unless firstChangeIndex?
-
-    invertedChanges = []
-    undoneEntries = @undoStack.splice(firstChangeIndex, @undoStack.length - firstChangeIndex)
-    for entry in undoneEntries by -1
-      @redoStack.push(entry)
-      invertedChanges.push(@invertChange(entry)) unless entry instanceof Checkpoint
-    invertedChanges
+  popUndoStack: (redoMetadata) ->
+    if @redoStack.length is 0
+      @redoStack.push(new Checkpoint(redoMetadata))
+    {metadata, changes} = @popChanges(@undoStack, @redoStack)
+    {metadata, changes: changes.map(@invertChange)}
 
   popRedoStack: ->
-    changes = []
-    while entry = @redoStack.pop()
-      @undoStack.push(entry)
-      if entry instanceof Checkpoint
-        break if changes.length > 0
-      else
-        changes.push(entry)
-    changes
+    @popChanges(@redoStack, @undoStack)
 
   truncateUndoStack: (checkpoint) ->
     checkpointIndex = @undoStack.lastIndexOf(checkpoint)
@@ -86,8 +68,31 @@ class History
         invertedChanges.push(@invertChange(entry))
     invertedChanges
 
-  clearRedoStack: ->
-    @redoStack.length = 0
+  ###
+  Section: Private
+  ###
+
+  popChanges: (fromStack, toStack) ->
+    result = {metadata: null, changes: []}
+
+    firstChangeIndex = null
+    for entry, i in fromStack by -1
+      if entry instanceof Checkpoint
+        break if firstChangeIndex?
+      else
+        firstChangeIndex = i
+
+    if firstChangeIndex?
+      poppedChanges = fromStack.splice(firstChangeIndex)
+      for change in poppedChanges by -1
+        toStack.push(change)
+        result.changes.push(change) unless change instanceof Checkpoint
+
+      poppedCheckpoint = fromStack.pop()
+      toStack.push(poppedCheckpoint)
+      result.metadata = poppedCheckpoint.metadata
+
+    result
 
   invertChange: ({oldRange, newRange, oldText, newText}) ->
     Object.freeze({
