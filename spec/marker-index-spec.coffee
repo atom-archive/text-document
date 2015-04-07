@@ -215,9 +215,11 @@ describe "MarkerIndex", ->
 
           markerIndex.insert("starts-at-point-exclusive", Point(0, 5), Point(0, 8))
           markerIndex.insert("ends-at-point-exclusive", Point(0, 3), Point(0, 5))
-
           markerIndex.setExclusive("starts-at-point-exclusive", true)
           markerIndex.setExclusive("ends-at-point-exclusive", true)
+
+          expect(markerIndex.isExclusive("starts-at-point")).toBe false
+          expect(markerIndex.isExclusive("starts-at-point-exclusive")).toBe true
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
@@ -237,6 +239,39 @@ describe "MarkerIndex", ->
           expect(markerIndex.getRange("starts-at-point")).toEqual Range(Point(0, 5), Point(0, 12))
           expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
           expect(markerIndex.getRange("at-point")).toEqual Range(Point(0, 5), Point(0, 9))
+
+  describe "::dump()", ->
+    it "returns an object containing each marker's range and exclusivity", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 4))
+      markerIndex.insert("d", Point(0, 7), Point(0, 8))
+      markerIndex.setExclusive("d", true)
+
+      expect(markerIndex.dump()).toEqual {
+        "a": {range: Range(Point(0, 2), Point(0, 5)), isExclusive: false}
+        "b": {range: Range(Point(0, 3), Point(0, 7)), isExclusive: false}
+        "c": {range: Range(Point(0, 4), Point(0, 4)), isExclusive: false}
+        "d": {range: Range(Point(0, 7), Point(0, 8)), isExclusive: true}
+      }
+
+  describe "::load(snapshot)", ->
+    it "clears its contents and inserts the markers described by the given snapshot", ->
+      markerIndex.insert("x", Point(0, 1), Point(0, 2))
+
+      markerIndex.load({
+        "a": {range: Range(Point(0, 2), Point(0, 5)), isExclusive: false}
+        "b": {range: Range(Point(0, 3), Point(0, 7)), isExclusive: false}
+        "c": {range: Range(Point(0, 4), Point(0, 4)), isExclusive: false}
+        "d": {range: Range(Point(0, 7), Point(0, 8)), isExclusive: true}
+      })
+
+      expect(markerIndex.getRange("a")).toEqual Range(Point(0, 2), Point(0, 5))
+      expect(markerIndex.getRange("b")).toEqual Range(Point(0, 3), Point(0, 7))
+      expect(markerIndex.getRange("c")).toEqual Range(Point(0, 4), Point(0, 4))
+      expect(markerIndex.getRange("d")).toEqual Range(Point(0, 7), Point(0, 8))
+      expect(markerIndex.isExclusive("c")).toBe false
+      expect(markerIndex.isExclusive("d")).toBe true
 
   describe "randomized mutations", ->
     [seed, random, markers, idCounter] = []

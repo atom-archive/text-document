@@ -112,6 +112,13 @@ class Node
         break
     end
 
+  dump: (offset, snapshot) ->
+    childEnd = offset
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+      child.dump(childStart, snapshot)
+
   findContaining: (point, set) ->
     childEnd = Point.zero()
     for child in @children
@@ -213,6 +220,14 @@ class Leaf
   getEnd: (id) ->
     @extent if @ids.has(id)
 
+  dump: (offset, snapshot) ->
+    end = offset.traverse(@extent)
+    @ids.forEach (id) ->
+      if snapshot[id].range?
+        snapshot[id].range.end = end
+      else
+        snapshot[id].range = Range(offset, end)
+
   findContaining: (point, set) ->
     addSet(set, @ids)
 
@@ -245,8 +260,7 @@ class Leaf
 module.exports =
 class MarkerIndex
   constructor: ->
-    @exclusiveIds = new Set
-    @rootNode = new Leaf(Point.infinity(), new Set)
+    @clear()
 
   insert: (id, start, end) ->
     if splitNodes = @rootNode.insert(new Set().add(id), start, end)
@@ -271,6 +285,9 @@ class MarkerIndex
           excludedIds.add(id) if @exclusiveIds.has(id)
 
     @rootNode.splice(position, oldExtent, newExtent, excludedIds)
+
+  isExclusive: (id) ->
+    @exclusiveIds.has(id)
 
   setExclusive: (id, isExclusive) ->
     if isExclusive
@@ -321,3 +338,23 @@ class MarkerIndex
     result = @findIntersecting(start, end)
     subtractSet(result, @findIntersecting(end.traverse(Point(0, 1))))
     result
+
+  clear: ->
+    @exclusiveIds = new Set
+    @rootNode = new Leaf(Point.infinity(), new Set)
+
+  dump: ->
+    snapshot = {}
+    @rootNode.ids.forEach (id) =>
+      snapshot[id] = {
+        range: null
+        isExclusive: @exclusiveIds.has(id)
+      }
+    @rootNode.dump(Point.zero(), snapshot)
+    snapshot
+
+  load: (snapshot) ->
+    @clear()
+    for id, {range: {start, end}, isExclusive} of snapshot
+      @insert(id, start, end)
+      @setExclusive(id, isExclusive)
