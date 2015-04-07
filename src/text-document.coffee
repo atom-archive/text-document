@@ -17,7 +17,7 @@ module.exports =
 class TextDocument
   constructor: (options) ->
     @history = new History
-    @markerStore = new MarkerStore
+    @markerStore = new MarkerStore(this)
     @emitter = new Emitter
     @refcount = 1
     @destroyed = false
@@ -79,9 +79,6 @@ class TextDocument
   onDidUpdateMarkers: (callback) ->
     @emitter.on("did-update-markers", callback)
 
-  onDidCreateMarker: (callback) ->
-    @markerStore.onDidCreateMarker(callback)
-
   onDidChangeEncoding: (callback) ->
     @emitter.on("did-change-encoding", callback)
 
@@ -102,6 +99,9 @@ class TextDocument
 
   onWillSave: (callback) ->
     @emitter.on("will-save", callback)
+
+  onDidCreateMarker: (callback) ->
+    @emitter.on("did-create-marker", callback)
 
   ###
   Section: File Details
@@ -263,6 +263,9 @@ class TextDocument
   ###
   Section: Private
   ###
+
+  markerCreated: (marker) ->
+    @emitter.emit("did-create-marker", marker)
 
   applyChange: (change, skipUndo) ->
     @emitter.emit("will-change", change)

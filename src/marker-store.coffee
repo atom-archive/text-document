@@ -1,4 +1,3 @@
-{Emitter} = require "event-kit"
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
@@ -7,9 +6,8 @@ MarkerIndex = require "./marker-index"
 
 module.exports =
 class MarkerStore
-  constructor: ->
+  constructor: (@delegate) ->
     @index = new MarkerIndex
-    @emitter = new Emitter
     @markersById = {}
     @nextMarkerId = 0
 
@@ -87,14 +85,11 @@ class MarkerStore
     marker = new Marker(String(@nextMarkerId++), this, options)
     @markersById[marker.id] = marker
     @index.insert(marker.id, range.start, range.end)
-    @emitter.emit("did-create-marker", marker)
+    @delegate.markerCreated(marker)
     marker
 
   markPosition: (position, options) ->
     @markRange(Range(position, position), options)
-
-  onDidCreateMarker: (callback) ->
-    @emitter.on("did-create-marker", callback)
 
   splice: (start, oldExtent, newExtent) ->
     @index.splice(start, oldExtent, newExtent)
@@ -115,3 +110,8 @@ class MarkerStore
 
   getMarkerEndPosition: (id) ->
     @index.getEnd(id)
+
+  setMarkerRange: (id, range) ->
+    @index.delete(id)
+    {start, end} = Range.fromObject(range)
+    @index.insert(id, @delegate.clipPosition(start), @delegate.clipPosition(end))
