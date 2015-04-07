@@ -588,14 +588,6 @@ describe "TextDocument", ->
         expect(document.getMarker(marker.id)).toBeUndefined()
         expect(destroyed).toBe true
 
-    describe "Marker::setProperties", ->
-      it "allows the properties to be retrieved", ->
-        marker = document.markPosition([0, 6], a: '1')
-        marker.setProperties(b: '2')
-
-        expect(marker.getProperties()).toEqual(a: '1', b: '2')
-        expect(document.findMarkers(b: '2')).toEqual [marker]
-
   describe "manipulating text", ->
     describe "::isEmpty", ->
       it "returns true if the document has no text", ->
