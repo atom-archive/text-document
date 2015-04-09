@@ -240,6 +240,19 @@ describe "MarkerIndex", ->
           expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
           expect(markerIndex.getRange("at-point")).toEqual Range(Point(0, 5), Point(0, 9))
 
+    describe "when the change spans multiple rows", ->
+      it "updates markers based on the change", ->
+        markerIndex.insert("a", Point(0, 6), Point(0, 9))
+
+        markerIndex.splice(Point(0, 1), Point(0, 0), Point(1, 3))
+        expect(markerIndex.getRange("a")).toEqual Range(Point(1, 8), Point(1, 11))
+
+        markerIndex.splice(Point(0, 1), Point(1, 3), Point(0, 0))
+        expect(markerIndex.getRange("a")).toEqual Range(Point(0, 6), Point(0, 9))
+
+        markerIndex.splice(Point(0, 5), Point(0, 3), Point(1, 3))
+        expect(markerIndex.getRange("a")).toEqual Range(Point(1, 3), Point(1, 4))
+
   describe "::dump()", ->
     it "returns an object containing each marker's range and exclusivity", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
@@ -303,17 +316,22 @@ describe "MarkerIndex", ->
           for {id, start, end} in markers
             expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id}; Seed: #{seed})"
             expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id}; Seed: #{seed})"
-
-          return if currentSpecFailed()
+            return if currentSpecFailed()
 
           for k in [1..10]
             [queryStart, queryEnd] = getRange()
             # console.log "#{k}: findContaining(#{queryStart}, #{queryEnd})"
             expect(markerIndex.findContaining(queryStart, queryEnd)).toEqualSet(getExpectedContaining(queryStart, queryEnd), "(Seed: #{seed})")
+            return if currentSpecFailed()
 
     getRange = ->
-      start = Point(0, random(100))
-      end = Point(0, random.intBetween(start.column, 100))
+      start = Point(random(100), random(100))
+      endRow = random.intBetween(start.row, 100)
+      if endRow is start.row
+        endColumn = random.intBetween(start.column, 100)
+      else
+        endColumn = random.intBetween(0, 100)
+      end = Point(endRow, endColumn)
       [start, end]
 
     getExpectedContaining = (start, end) ->

@@ -73,8 +73,11 @@ class Node
       childEnd = childStart.traverse(child.extent)
 
       if remainderToDelete?
-        remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
-        continue
+        if remainderToDelete.isPositive()
+          remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
+          continue
+        else
+          break
 
       switch childEnd.compare(position)
         when -1 then childPrecedesRange = true
@@ -84,11 +87,18 @@ class Node
 
       relativeStart = position.traversalFrom(childStart)
       remainderToDelete = child.splice(relativeStart, oldExtent, newExtent, excludedIds)
+      childEnd = childStart.traverse(child.extent)
 
-    @extent = @extent
-      .traverse(newExtent.traversalFrom(oldExtent))
-      .traverse(remainderToDelete)
-    remainderToDelete
+    spliceOldEnd = position.traverse(oldExtent)
+    spliceNewEnd = position.traverse(newExtent)
+    if spliceOldEnd.compare(@extent) > 0
+      remainder = spliceOldEnd.traversalFrom(@extent)
+      @extent = spliceNewEnd
+    else
+      remainder = Point.zero()
+      @extent = Point.max(Point.zero(), spliceNewEnd.traverse(@extent.traversalFrom(spliceOldEnd)))
+
+    remainder
 
   getStart: (id) ->
     return unless @ids.has(id)
@@ -195,24 +205,21 @@ class Leaf
 
   splice: (position, spliceOldExtent, spliceNewExtent, excludedIds) ->
     subtractSet(@ids, excludedIds) if excludedIds?
-    myOldExtent = @extent
     spliceOldEnd = position.traverse(spliceOldExtent)
     spliceNewEnd = position.traverse(spliceNewExtent)
-    spliceDelta = spliceNewExtent.traversalFrom(spliceOldExtent)
 
     if spliceOldEnd.compare(@extent) > 0
       # If the splice ends after this leaf node, this leaf should end at
       # the end of the splice.
+      remainder = spliceOldEnd.traversalFrom(@extent)
       @extent = spliceNewEnd
     else
       # Otherwise, this leaf contains the splice, its size should be adjusted
       # by the delta.
-      @extent = Point.max(Point.zero(), @extent.traverse(spliceDelta))
+      remainder = Point.zero()
+      @extent = Point.max(Point.zero(), spliceNewEnd.traverse(@extent.traversalFrom(spliceOldEnd)))
 
-    # How does the splice to this leaf's extent compare to the global splice in
-    # the tree's extent implied by the splice? If this leaf grew too much or didn't
-    # shrink enough, we may need to shrink subsequent leaves.
-    @extent.traversalFrom(myOldExtent).traversalFrom(spliceDelta)
+    remainder
 
   getStart: (id) ->
     Point.zero() if @ids.has(id)
