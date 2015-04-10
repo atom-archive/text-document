@@ -298,14 +298,19 @@ describe "MarkerIndex", ->
         markerIndex = new MarkerIndex
 
         for j in [1..50]
-          # 80% insert, 20% delete
+          # 60% insert, 20% splice, 20% delete
 
-          if markers.length is 0 or random(10) > 2
+          if markers.length is 0 or random(10) > 4
             id = idCounter++
             [start, end] = getRange()
             # console.log "#{j}: insert(#{id}, #{start}, #{end})"
             markerIndex.insert(id, start, end)
             markers.push({id, start, end})
+          else if random(10) > 2
+            [start, oldExtent, newExtent] = getSplice()
+            # console.log "#{j}: splice(#{start}, #{oldExtent}, #{newExtent})"
+            markerIndex.splice(start, oldExtent, newExtent)
+            spliceMarkers(start, oldExtent, newExtent)
           else
             [{id}] = markers.splice(random(markers.length - 1), 1)
             # console.log "#{j}: delete(#{id})"
@@ -314,8 +319,8 @@ describe "MarkerIndex", ->
           # console.log markerIndex.rootNode.toString()
 
           for {id, start, end} in markers
-            expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id}; Seed: #{seed})"
-            expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id}; Seed: #{seed})"
+            expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id} start; Seed: #{seed})"
+            expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id} end; Seed: #{seed})"
             return if currentSpecFailed()
 
           for k in [1..10]
@@ -323,6 +328,63 @@ describe "MarkerIndex", ->
             # console.log "#{k}: findContaining(#{queryStart}, #{queryEnd})"
             expect(markerIndex.findContaining(queryStart, queryEnd)).toEqualSet(getExpectedContaining(queryStart, queryEnd), "(Seed: #{seed})")
             return if currentSpecFailed()
+
+    getSplice = ->
+      start = Point(random(100), random(100))
+      oldExtent = Point(random(100 - start.row), random(100))
+      newExtent = Point(random(100 - start.row), random(100))
+      [start, oldExtent, newExtent]
+
+    spliceMarkers = (spliceStart, oldExtent, newExtent) ->
+      spliceOldEnd = spliceStart.traverse(oldExtent)
+      spliceNewEnd = spliceStart.traverse(newExtent)
+
+      shiftBySplice = (point) ->
+        spliceNewEnd.traverse(point.traversalFrom(spliceOldEnd))
+
+      for marker in markers
+        if spliceStart.compare(marker.start) < 0
+
+          # replacing text before the marker or inserting at the start of the marker
+          if spliceOldEnd.compare(marker.start) <= 0
+            marker.start = shiftBySplice(marker.start)
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text that overlaps the start of the marker
+          else if spliceOldEnd.compare(marker.end) < 0
+            marker.start = spliceNewEnd
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text surrounding the marker
+          else
+            marker.start = spliceNewEnd.copy()
+            marker.end = spliceNewEnd.copy()
+
+        else if spliceStart.isEqual(marker.start) and spliceStart.compare(marker.end) < 0
+
+          # replacing text at the start of the marker, within the marker
+          if spliceOldEnd.compare(marker.end) < 0
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text at the start of the marker, longer than the marker
+          else
+            marker.end = spliceNewEnd
+
+        else if spliceStart.compare(marker.end) < 0
+
+          # replacing text within the marker
+          if spliceOldEnd.compare(marker.end) <= 0
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text that overlaps the end of the marker
+          else if spliceOldEnd.compare(marker.end) > 0
+            marker.end = spliceNewEnd
+
+        else if spliceStart.compare(marker.end) is 0
+
+          # inserting text at the end of the marker
+          if spliceOldEnd.isEqual(marker.end)
+            marker.end = spliceNewEnd
 
     getRange = ->
       start = Point(random(100), random(100))
