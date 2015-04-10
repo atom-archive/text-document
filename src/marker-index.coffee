@@ -67,38 +67,39 @@ class Node
 
   splice: (position, oldExtent, newExtent, excludedIds) ->
     oldRangeIsEmpty = oldExtent.isZero()
+
+    i = 0
     childEnd = Point.zero()
-    for child in @children
+    while i < @children.length
+      child = @children[i]
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
-
-      if remainderToDelete?
-        if remainderToDelete.isPositive()
-          remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
-          continue
-        else
-          break
+      i++
 
       switch childEnd.compare(position)
         when -1 then childPrecedesRange = true
         when 0  then childPrecedesRange = not (child.hasEmptyRightmostLeaf() and oldRangeIsEmpty)
         when 1  then childPrecedesRange = false
-      continue if childPrecedesRange
 
-      relativeStart = position.traversalFrom(childStart)
-      remainderToDelete = child.splice(relativeStart, oldExtent, newExtent, excludedIds)
-      childEnd = childStart.traverse(child.extent)
+      unless childPrecedesRange
+        if remainderToDelete?
+          if remainderToDelete.isPositive()
+            remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
+            childEnd = childStart.traverse(child.extent)
+        else
+          relativeStart = position.traversalFrom(childStart)
+          remainderToDelete = child.splice(relativeStart, oldExtent, newExtent, excludedIds)
+          childEnd = childStart.traverse(child.extent)
 
+      if @children[i - 2]?.shouldMergeWith(child)
+        add = @children[i - 2].merge(child)
+        removed = @children.splice(i - 2, 2, @children[i - 2].merge(child))
+        i--
+
+    previousExtent = @extent
     spliceOldEnd = position.traverse(oldExtent)
-    spliceNewEnd = position.traverse(newExtent)
-    if spliceOldEnd.compare(@extent) > 0
-      remainder = spliceOldEnd.traversalFrom(@extent)
-      @extent = spliceNewEnd
-    else
-      remainder = Point.zero()
-      @extent = Point.max(Point.zero(), spliceNewEnd.traverse(@extent.traversalFrom(spliceOldEnd)))
-
-    remainder
+    @extent = childEnd
+    Point.max(Point.zero(), spliceOldEnd.traversalFrom(previousExtent))
 
   getStart: (id) ->
     return unless @ids.has(id)
@@ -162,10 +163,17 @@ class Node
     @children[0].hasEmptyLeftmostLeaf()
 
   shouldMergeWith: (other) ->
-    @children.length + other.children.length <= BRANCHING_THRESHOLD
+    childCount = @children.length + other.children.length
+    if @children[@children.length - 1].shouldMergeWith(other.children[0])
+      childCount--
+    childCount <= BRANCHING_THRESHOLD
 
   merge: (other) ->
-    new Node(@children.concat(other.children))
+    children = @children.concat(other.children)
+    joinIndex = @children.length - 1
+    if children[joinIndex].shouldMergeWith(children[joinIndex + 1])
+      children.splice(joinIndex, 2, children[joinIndex].merge(children[joinIndex + 1]))
+    new Node(children)
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -205,21 +213,13 @@ class Leaf
 
   splice: (position, spliceOldExtent, spliceNewExtent, excludedIds) ->
     subtractSet(@ids, excludedIds) if excludedIds?
+
+    previousExtent = @extent
     spliceOldEnd = position.traverse(spliceOldExtent)
     spliceNewEnd = position.traverse(spliceNewExtent)
-
-    if spliceOldEnd.compare(@extent) > 0
-      # If the splice ends after this leaf node, this leaf should end at
-      # the end of the splice.
-      remainder = spliceOldEnd.traversalFrom(@extent)
-      @extent = spliceNewEnd
-    else
-      # Otherwise, this leaf contains the splice, its size should be adjusted
-      # by the delta.
-      remainder = Point.zero()
-      @extent = Point.max(Point.zero(), spliceNewEnd.traverse(@extent.traversalFrom(spliceOldEnd)))
-
-    remainder
+    extentAfterChange = @extent.traversalFrom(spliceOldEnd)
+    @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
+    Point.max(Point.zero(), spliceOldEnd.traversalFrom(previousExtent))
 
   getStart: (id) ->
     Point.zero() if @ids.has(id)
@@ -248,10 +248,12 @@ class Leaf
     @extent.isZero()
 
   shouldMergeWith: (other) ->
-    setEqual(@ids, other.ids)
+    setEqual(@ids, other.ids) or @extent.isZero() and other.extent.isZero()
 
   merge: (other) ->
-    new Leaf(@extent.traverse(other.extent), new Set(@ids))
+    ids = new Set(@ids)
+    other.ids.forEach (id) -> ids.add(id)
+    new Leaf(@extent.traverse(other.extent), ids)
 
   toString: (indentLevel=0) ->
     indent = ""
