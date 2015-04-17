@@ -48,8 +48,7 @@ class History
     @redoStack.length = 0
 
   popUndoStack: (redoMetadata) ->
-    if @redoStack.length is 0
-      @redoStack.push(new Checkpoint(redoMetadata))
+    @redoStack.push(new Checkpoint(redoMetadata))
     {metadata, changes} = @popChanges(@undoStack, @redoStack)
     {metadata, changes: changes.map(@invertChange)}
 

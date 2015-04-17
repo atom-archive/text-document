@@ -82,7 +82,7 @@ class MarkerStore
   markRange: (range, options={}) ->
     range = Range.fromObject(range)
     options.invalidate ?= 'overlap'
-    marker = new Marker(String(@nextMarkerId++), this, options)
+    marker = new Marker(String(@nextMarkerId++), this, range, options)
     @markersById[marker.id] = marker
     @index.insert(marker.id, range.start, range.end)
     @delegate.markerCreated(marker)
@@ -92,13 +92,39 @@ class MarkerStore
     @markRange(Range(position, position), options)
 
   splice: (start, oldExtent, newExtent) ->
+    end = start.traverse(oldExtent)
+
+    intersecting = @index.findIntersecting(start, end)
+    endingAt = @index.findEndingIn(start)
+    startingAt = @index.findStartingIn(end)
+    startingIn = @index.findStartingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
+    endingIn = @index.findEndingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
+
+    for id, marker of @markersById
+      switch marker.invalidationStrategy
+        when 'touch'
+          invalid = intersecting.has(id)
+        when 'inside'
+          invalid = intersecting.has(id) and not (startingAt.has(id) or endingAt.has(id))
+        when 'overlap'
+          invalid = startingIn.has(id) or endingIn.has(id)
+        when 'surround'
+          invalid = startingIn.has(id) and endingIn.has(id)
+        when 'never'
+          invalid = false
+
+      marker.valid = not invalid
+
     @index.splice(start, oldExtent, newExtent)
 
-  updateMarkers: (oldSnapshots, newSnapshots) ->
+  restoreFromSnapshot: (snapshots) ->
     for id, marker of @markersById
-      continue unless oldSnapshot = oldSnapshots[id]
-      continue unless newSnapshot = newSnapshots[id]
-      marker.updateFromSnapshots(oldSnapshot, newSnapshot)
+      if snapshot = snapshots[id]
+        marker.update(snapshot, true)
+
+  emitChangeEvents: ->
+    for id, marker of @markersById
+      marker.emitChangeEvent(marker.getRange(), true, false)
 
   createSnapshot: ->
     markerSnapshots = @index.dump()
@@ -107,7 +133,9 @@ class MarkerStore
       delete snapshot.isExclusive
       snapshot.reversed = marker.isReversed()
       snapshot.tailed = marker.hasTail()
+      snapshot.invalidate = marker.invalidationStrategy
       snapshot.valid = marker.isValid()
+      snapshot.properties = marker.properties
     markerSnapshots
 
   ###

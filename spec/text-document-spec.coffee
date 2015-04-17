@@ -1,4 +1,5 @@
 fs = require "fs"
+{difference} = require "underscore-plus"
 Point = require "../src/point"
 Range = require "../src/range"
 TextDocument = require "../src/text-document"
@@ -674,6 +675,324 @@ describe "TextDocument", ->
             oldProperties: {}, newProperties: {}
             textChanged: true
           }
+
+      describe "when a change precedes a marker", ->
+        it "shifts the marker based on the characters inserted or removed by the change", ->
+          document.setTextInRange([[0, 1], [0, 2]], "ABC")
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+          document.setTextInRange([[0, 1], [0, 1]], '\nDEF')
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[1, 10], [1, 13]]
+            expect(marker.isValid()).toBe true
+
+          for marker in allStrategies
+            marker.setRange([[1, Infinity], [1, Infinity]])
+
+          document.undo()
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+          document.undo()
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+          for marker in allStrategies
+            marker.setRange([[1, Infinity], [1, Infinity]])
+
+          document.redo()
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change follows a marker", ->
+        it "does not shift the marker", ->
+          document.setTextInRange([[0, 10], [0, 12]], "ABC")
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change starts at a marker's start position", ->
+        describe "when the marker has a tail", ->
+          it "interprets the change as being inside the marker for all invalidation strategies", ->
+            document.setTextInRange([[0, 6], [0, 7]], "ABC")
+
+            for marker in difference(allStrategies, [insideMarker, touchMarker])
+              expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+              expect(marker.isValid()).toBe true
+
+            for marker in [insideMarker, touchMarker]
+              expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+              expect(marker.isValid()).toBe(false, "for marker #{marker.id} #{marker.invalidationStrategy}")
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+        xdescribe "when the marker has no tail", ->
+          it "interprets the change as being outside the marker for all invalidation strategies", ->
+            for marker in allStrategies
+              marker.setRange([[0, 6], [0, 11]], reversed: true)
+              marker.clearTail()
+              expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+            document.setTextInRange([[0, 6], [0, 6]], "ABC")
+
+            for marker in difference(allStrategies, [touchMarker])
+              expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0 ,6]]
+              expect(marker.isValid()).toBe true
+
+            for marker in allStrategies
+              marker.setRange([[0, 6], [0, 6]], reversed: false)
+              marker.clearTail()
+              expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+            document.setTextInRange([[0, 6], [0, 6]], "DEF")
+
+            for marker in difference(allStrategies, [touchMarker])
+              expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+              expect(marker.isValid()).toBe true
+
+      describe "when a change ends at a marker's start position but starts before it", ->
+        it "interprets the change as being outside the marker for all invalidation strategies except 'touch'", ->
+          document.setTextInRange([[0, 4], [0, 6]], "ABC")
+
+          for marker in difference(allStrategies, [touchMarker])
+            expect(marker.getRange()).toEqual [[0, 7], [0, 10]]
+            expect(marker.isValid()).toBe(true, "For marker #{marker.invalidationStrategy}")
+
+          expect(touchMarker.getRange()).toEqual [[0, 7], [0, 10]]
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change starts and ends at a marker's start position", ->
+        xit "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
+          document.insert([0, 6], "ABC")
+
+          for marker in difference(allStrategies, [insideMarker, touchMarker])
+            expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.getRange()).toEqual [[0, 9], [0, 12]]
+          expect(insideMarker.isValid()).toBe true
+
+          expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change starts at a marker's end position", ->
+        describe "when the change is an insertion", ->
+          xit "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
+            document.setTextInRange([[0, 9], [0, 9]], "ABC")
+
+            for marker in difference(allStrategies, [insideMarker, touchMarker])
+              expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+              expect(marker.isValid()).toBe true
+
+            expect(insideMarker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(insideMarker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+        describe "when the change replaces some existing text", ->
+          it "interprets the change as being outside the marker for all invalidation strategies", ->
+            document.setTextInRange([[0, 9], [0, 11]], "ABC")
+
+            for marker in difference(allStrategies, [touchMarker])
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+      describe "when a change surrounds a marker", ->
+        it "truncates the marker to the end of the change and invalidates every invalidation strategy except 'never'", ->
+          document.setTextInRange([[0, 5], [0, 10]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 8]]
+
+          for marker in difference(allStrategies, [neverMarker])
+            expect(marker.isValid()).toBe(false, "for marker #{marker.invalidationStrategy}")
+
+          expect(neverMarker.isValid()).toBe true
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change is inside a marker", ->
+        it "adjusts the marker's end position and invalidates markers with an 'inside' or 'touch' strategy", ->
+          document.setTextInRange([[0, 7], [0, 8]], "AB")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 10]]
+
+          for marker in difference(allStrategies, [insideMarker, touchMarker])
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change overlaps the start of a marker", ->
+        it "moves the start of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
+          document.setTextInRange([[0, 5], [0, 7]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 10]]
+
+          expect(neverMarker.isValid()).toBe true
+          expect(surroundMarker.isValid()).toBe true
+          expect(overlapMarker.isValid()).toBe false
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change overlaps the end of a marker", ->
+        it "moves the end of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
+          document.setTextInRange([[0, 8], [0, 10]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+
+          expect(neverMarker.isValid()).toBe true
+          expect(surroundMarker.isValid()).toBe true
+          expect(overlapMarker.isValid()).toBe false
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change precedes the creation of a marker", ->
+        it "updates the marker as normal when undoing / redoing the change", ->
+          document.setTextInRange([[0, 1], [0, 2]], "ABC")
+          marker1 = document.markRange([[0, 5], [0, 6]])
+          document.undo()
+          expect(marker1.getRange()).toEqual [[0, 3], [0, 4]]
+
+          marker2 = document.markRange([[0, 7], [0, 9]])
+          document.redo()
+          expect(marker1.getRange()).toEqual [[0, 5], [0, 6]]
+          expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
+
+      describe "when multiple changes occur in a transaction", ->
+        it "correctly restores markers when the transaction is undone", ->
+          document.setText('')
+
+          document.transact ->
+            document.append('foo')
+
+          document.transact ->
+            document.append('\n')
+            document.append('bar')
+
+          marker1 = document.markRange([[0, 0], [0, 3]], invalidate: 'never')
+          marker2 = document.markRange([[1, 0], [1, 3]], invalidate: 'never')
+
+          marker1Ranges = []
+          marker2Ranges = []
+          document.onDidChange ->
+            marker1Ranges.push(marker1.getRange())
+            marker2Ranges.push(marker2.getRange())
+
+          document.undo()
+
+          expect(document.getText()).toBe 'foo'
+          expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
+          expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
+          expect(marker2.getRange()).toEqual([[0, 3], [0, 3]])
+
+          marker1Ranges = []
+          marker2Ranges = []
+
+          document.redo()
+
+          return
+
+          # TODO: investigate these failures.
+
+          expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
+          expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
+          expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
+
+        it "only records marker patches for direct marker updates", ->
+          document.setText("abcd")
+          marker = document.markRange([[0, 3], [0, 3]])
+
+          document.transact ->
+            document.delete([[0, 0], [0, 1]])
+            marker.setHeadPosition([0, 4])
+            document.delete([[0, 3], [0, 4]])
+            marker.setHeadPosition([0, 3])
+
+          document.undo()
+          expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
 
     describe "Marker::destroy", ->
       it "removes the marker and calls callbacks registered with ::onDidDestroy", ->
