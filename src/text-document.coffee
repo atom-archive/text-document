@@ -58,6 +58,9 @@ class TextDocument
   onDidChange: (callback) ->
     @emitter.on("did-change", callback)
 
+  onWillChange: (callback) ->
+    @emitter.on("will-change", callback)
+
   onDidDestroy: (callback) ->
     @emitter.on("did-destroy", callback)
 
@@ -142,6 +145,8 @@ class TextDocument
 
   setTextInRange: (oldRange, newText) ->
     oldRange = Range.fromObject(oldRange)
+    oldRange.start = @clipPosition(oldRange.start)
+    oldRange.end = @clipPosition(oldRange.end)
     oldText = @getTextInRange(oldRange)
     @applyChange({oldRange, oldText, newText})
 
@@ -248,6 +253,7 @@ class TextDocument
   ###
 
   applyChange: (change, skipUndo) ->
+    @emitter.emit("will-change", change)
     {oldRange, newText} = change
     start = oldRange.start
     oldExtent = oldRange.getExtent()

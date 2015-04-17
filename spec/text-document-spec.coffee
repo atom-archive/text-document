@@ -297,33 +297,63 @@ describe "TextDocument", ->
         """
 
     describe "::setTextInRange(range, text)", ->
-      it "replaces the text in the given range with the given text", ->
-        changeEvents = []
-        document.onDidChange (event) -> changeEvents.push(event)
+      beforeEach ->
+        document = new TextDocument("hello\nworld\r\nhow are you doing?")
 
-        document.setText """
-          one
-          two
-          three
-          four
-        """
+      it "can replace text on a single line with a standard newline", ->
+        document.setTextInRange([[0, 2], [0, 4]], "y y")
+        expect(document.getText()).toEqual "hey yo\nworld\r\nhow are you doing?"
 
-        newRange = document.setTextInRange([[1, 2], [2, 4]], "inkl")
-        expect(document.getText()).toBe """
-          one
-          twinkle
-          four
-        """
+      it "can replace text on a single line with a carriage-return/newline", ->
+        document.setTextInRange([[1, 3], [1, 5]], "ms")
+        expect(document.getText()).toEqual "hello\nworms\r\nhow are you doing?"
 
-        expect(newRange).toEqual(Range(Point(1, 2), Point(1, 6)))
-        expect(changeEvents).toEqual([{
-          oldText: "o\nthre"
-          newText: "inkl"
-          oldRange: Range(Point(1, 2), Point(2, 4))
-          newRange: Range(Point(1, 2), Point(1, 6))
-        }])
+      it "can replace text in a region spanning multiple lines, ending on the last line", ->
+        document.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
+        expect(document.getText()).toEqual "hey there\r\ncat\nwhat are you doing?"
 
-      it "calls callbacks registered with ::onDidChange(fn)", ->
+      it "can replace text in a region spanning multiple lines, ending with a carriage-return/newline", ->
+        document.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", normalizeLineEndings: false)
+        expect(document.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
+
+      it "notifies ::onWillChange observers with the relevant details before a change", ->
+        changes = []
+        document.onWillChange (change) ->
+          expect(document.getText()).toBe "hello\nworld\r\nhow are you doing?"
+          changes.push(change)
+
+        document.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
+        expect(changes).toEqual [{
+          oldRange: [[0, 2], [2, 3]]
+          newRange: [[0, 2], [2, 4]]
+          oldText: "llo\nworld\r\nhow"
+          newText: "y there\r\ncat\nwhat"
+        }]
+
+      it "notifies ::onDidChange observers with the relevant details after a change", ->
+        changes = []
+        document.onDidChange (change) -> changes.push(change)
+        document.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
+        expect(changes).toEqual [{
+          oldRange: [[0, 2], [2, 3]]
+          newRange: [[0, 2], [2, 4]]
+          oldText: "llo\nworld\r\nhow"
+          newText: "y there\r\ncat\nwhat"
+        }]
+
+      it "returns the newRange of the change", ->
+        expect(document.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat"), normalizeLineEndings: false).toEqual [[0, 2], [2, 4]]
+
+      it "clips the given range", ->
+        document.setTextInRange([[-1, -1], [0, 1]], "y")
+        document.setTextInRange([[0, 10], [0, 100]], "w")
+        expect(document.lineForRow(0)).toBe "yellow"
+
+      it "preserves the line endings of existing lines", ->
+        document.setTextInRange([[0, 1], [0, 2]], 'o')
+        expect(document.lineEndingForRow(0)).toBe '\n'
+        document.setTextInRange([[1, 1], [1, 3]], 'i')
+        expect(document.lineEndingForRow(1)).toBe '\r\n'
 
   describe "history", ->
     beforeEach ->
