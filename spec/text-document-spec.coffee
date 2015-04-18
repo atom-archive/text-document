@@ -150,6 +150,22 @@ describe "TextDocument", ->
         expect(document.positionForCharacterIndex(-1)).toEqual Point(0, 0)
         expect(document.positionForCharacterIndex(20)).toEqual Point(3, 5)
 
+    describe "::rangeForRow(row, includeNewline)", ->
+      beforeEach ->
+        document = new TextDocument("this\nis a test\r\ntesting")
+
+      describe "if includeNewline is false (the default)", ->
+        it "returns a range from the beginning of the line to the end of the line", ->
+          expect(document.rangeForRow(0)).toEqual([[0, 0], [0, 4]])
+          expect(document.rangeForRow(1)).toEqual([[1, 0], [1, 9]])
+          expect(document.rangeForRow(2)).toEqual([[2, 0], [2, 7]])
+
+      describe "if includeNewline is true", ->
+        it "returns a range from the beginning of the line to the beginning of the next (if it exists)", ->
+          expect(document.rangeForRow(0, true)).toEqual([[0, 0], [1, 0]])
+          expect(document.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
+          expect(document.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])
+
   describe "markers", ->
     describe "::markPosition(position, properties)", ->
       it "returns a marker for the given position with the given properties (plus defaults)", ->
