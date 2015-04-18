@@ -120,7 +120,7 @@ class TextDocument
         @loaded = true
         @setText(contents) if contents
         @emitter.emit("did-load")
-        resolve()
+        resolve(this)
 
   isModified: ->
     false

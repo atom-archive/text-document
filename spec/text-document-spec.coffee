@@ -52,7 +52,8 @@ describe "TextDocument", ->
           document = new TextDocument({filePath})
 
           expect(document.loaded).toBe false
-          document.load().then ->
+          document.load().then (value) ->
+            expect(value).toBe document
             expect(document.getText()).toBe fs.readFileSync(filePath, 'utf8')
             done()
 
