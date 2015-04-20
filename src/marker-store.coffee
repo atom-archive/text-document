@@ -85,6 +85,8 @@ class MarkerStore
     marker = new Marker(String(@nextMarkerId++), this, range, options)
     @markersById[marker.id] = marker
     @index.insert(marker.id, range.start, range.end)
+    if marker.invalidationStrategy is 'inside'
+      @index.setExclusive(marker.id, true)
     @delegate.markerCreated(marker)
     marker
 
