@@ -67,6 +67,10 @@ class Node
 
   splice: (position, oldExtent, newExtent, excludedIds) ->
     oldRangeIsEmpty = oldExtent.isZero()
+    spliceOldEnd = position.traverse(oldExtent)
+    spliceNewEnd = position.traverse(newExtent)
+    extentAfterChange = @extent.traversalFrom(spliceOldEnd)
+    @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
 
     i = 0
     childEnd = Point.zero()
@@ -84,22 +88,19 @@ class Node
       unless childPrecedesRange
         if remainderToDelete?
           if remainderToDelete.isPositive()
-            remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
+            previousExtent = child.extent
+            child.splice(Point.zero(), remainderToDelete, Point.zero())
+            remainderToDelete = remainderToDelete.traversalFrom(previousExtent)
             childEnd = childStart.traverse(child.extent)
         else
           relativeStart = position.traversalFrom(childStart)
-          remainderToDelete = child.splice(relativeStart, oldExtent, newExtent, excludedIds)
+          child.splice(relativeStart, oldExtent, newExtent, excludedIds)
+          remainderToDelete = spliceOldEnd.traversalFrom(childEnd)
           childEnd = childStart.traverse(child.extent)
 
       if @children[i - 2]?.shouldMergeWith(child)
-        add = @children[i - 2].merge(child)
-        removed = @children.splice(i - 2, 2, @children[i - 2].merge(child))
+        @children.splice(i - 2, 2, @children[i - 2].merge(child))
         i--
-
-    previousExtent = @extent
-    spliceOldEnd = position.traverse(oldExtent)
-    @extent = childEnd
-    Point.max(Point.zero(), spliceOldEnd.traversalFrom(previousExtent))
 
   getStart: (id) ->
     return unless @ids.has(id)
@@ -213,13 +214,10 @@ class Leaf
 
   splice: (position, spliceOldExtent, spliceNewExtent, excludedIds) ->
     subtractSet(@ids, excludedIds) if excludedIds?
-
-    previousExtent = @extent
     spliceOldEnd = position.traverse(spliceOldExtent)
     spliceNewEnd = position.traverse(spliceNewExtent)
     extentAfterChange = @extent.traversalFrom(spliceOldEnd)
     @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
-    Point.max(Point.zero(), spliceOldEnd.traversalFrom(previousExtent))
 
   getStart: (id) ->
     Point.zero() if @ids.has(id)
