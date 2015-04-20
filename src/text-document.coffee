@@ -228,16 +228,16 @@ class TextDocument
   ###
 
   undo: ->
-    {changes, metadata: markerSnapshot} = @history.popUndoStack(@markerStore.createSnapshot())
-    @applyChange(change, true) for change in changes
-    @markerStore.restoreFromSnapshot(markerSnapshot) if markerSnapshot
-    @emitter.emit("did-update-markers")
+    if poppedEntries = @history.popUndoStack(@markerStore.createSnapshot())
+      @applyChange(change, true) for change in poppedEntries.changes
+      @markerStore.restoreFromSnapshot(poppedEntries.metadata)
+      @emitter.emit("did-update-markers")
 
   redo: ->
-    {changes, metadata: markerSnapshot} = @history.popRedoStack()
-    @applyChange(change, true) for change in changes
-    @markerStore.restoreFromSnapshot(markerSnapshot) if markerSnapshot
-    @emitter.emit("did-update-markers")
+    if poppedEntries = @history.popRedoStack()
+      @applyChange(change, true) for change in poppedEntries.changes
+      @markerStore.restoreFromSnapshot(poppedEntries.metadata)
+      @emitter.emit("did-update-markers")
 
   transact: (groupingInterval, fn) ->
     if typeof groupingInterval is 'function'

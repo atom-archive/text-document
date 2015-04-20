@@ -48,12 +48,15 @@ class History
     @redoStack.length = 0
 
   popUndoStack: (redoMetadata) ->
-    @redoStack.push(new Checkpoint(redoMetadata))
-    {metadata, changes} = @popChanges(@undoStack, @redoStack)
-    {metadata, changes: changes.map(@invertChange)}
+    if firstChangeIndex = @firstChangeIndex(@undoStack)
+      @redoStack.push(new Checkpoint(redoMetadata))
+      result = @popChanges(@undoStack, @redoStack, firstChangeIndex)
+      result.changes = result.changes.map(@invertChange)
+      result
 
   popRedoStack: ->
-    @popChanges(@redoStack, @undoStack)
+    if firstChangeIndex = @firstChangeIndex(@redoStack)
+      @popChanges(@redoStack, @undoStack, firstChangeIndex)
 
   truncateUndoStack: (checkpoint) ->
     checkpointIndex = @undoStack.lastIndexOf(checkpoint)
@@ -71,27 +74,23 @@ class History
   Section: Private
   ###
 
-  popChanges: (fromStack, toStack) ->
-    result = {metadata: null, changes: []}
-
+  firstChangeIndex: (stack) ->
     firstChangeIndex = null
-    for entry, i in fromStack by -1
+    for entry, i in stack by -1
       if entry instanceof Checkpoint
         break if firstChangeIndex?
       else
         firstChangeIndex = i
+    firstChangeIndex
 
-    if firstChangeIndex?
-      poppedChanges = fromStack.splice(firstChangeIndex)
-      for change in poppedChanges by -1
-        toStack.push(change)
-        result.changes.push(change) unless change instanceof Checkpoint
-
-      poppedCheckpoint = fromStack.pop()
-      toStack.push(poppedCheckpoint)
-      result.metadata = poppedCheckpoint.metadata
-
-    result
+  popChanges: (fromStack, toStack, firstChangeIndex) ->
+    changes = []
+    for entry in fromStack.splice(firstChangeIndex) by -1
+      toStack.push(entry)
+      changes.push(entry) unless entry instanceof Checkpoint
+    checkpoint = fromStack.pop()
+    toStack.push(checkpoint)
+    {changes, metadata: checkpoint.metadata}
 
   invertChange: ({oldRange, newRange, oldText, newText}) ->
     Object.freeze({
