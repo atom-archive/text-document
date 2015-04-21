@@ -35,5 +35,12 @@ class Range
   getExtent: ->
     @end.traversalFrom(@start)
 
+  containsPoint: (point, exclusive) ->
+    point = Point.fromObject(point)
+    if exclusive
+      @start.compare(point) < 0 and point.compare(@end) < 0
+    else
+      @start.compare(point) <= 0 and point.compare(@end) <= 0
+
   toString: ->
     "(#{@start}, #{@end})"
