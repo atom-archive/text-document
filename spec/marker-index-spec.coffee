@@ -232,13 +232,16 @@ describe "MarkerIndex", ->
         it "treats the change as being inside markers that it intersects", ->
           markerIndex.insert("starts-at-point", Point(0, 5), Point(0, 8))
           markerIndex.insert("ends-at-point", Point(0, 3), Point(0, 5))
-          markerIndex.insert("at-point", Point(0, 5), Point(0, 5))
+          markerIndex.insert("at-point-inclusive", Point(0, 5), Point(0, 5))
+          markerIndex.insert("at-point-exclusive", Point(0, 5), Point(0, 5))
+          markerIndex.setExclusive("at-point-exclusive", true)
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
           expect(markerIndex.getRange("starts-at-point")).toEqual Range(Point(0, 5), Point(0, 12))
           expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
-          expect(markerIndex.getRange("at-point")).toEqual Range(Point(0, 5), Point(0, 9))
+          expect(markerIndex.getRange("at-point-inclusive")).toEqual Range(Point(0, 5), Point(0, 9))
+          expect(markerIndex.getRange("at-point-exclusive")).toEqual Range(Point(0, 9), Point(0, 9))
 
     describe "when the change spans multiple rows", ->
       it "updates markers based on the change", ->
@@ -357,8 +360,8 @@ describe "MarkerIndex", ->
 
           # replacing text surrounding the marker
           else
-            marker.start = spliceNewEnd.copy()
-            marker.end = spliceNewEnd.copy()
+            marker.start = spliceNewEnd
+            marker.end = spliceNewEnd
 
         else if spliceStart.isEqual(marker.start) and spliceStart.compare(marker.end) < 0
 
