@@ -166,6 +166,11 @@ describe "TextDocument", ->
           expect(document.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
           expect(document.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])
 
+    describe "::getRange()", ->
+      it "returns the range spanned by the document's text", ->
+        document = new TextDocument("one\ntwo\nthree")
+        expect(document.getRange()).toEqual([[0, 0], [2, 5]])
+
   describe "markers", ->
     describe "::markPosition(position, properties)", ->
       it "returns a marker for the given position with the given properties (plus defaults)", ->

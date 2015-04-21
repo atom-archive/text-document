@@ -192,6 +192,9 @@ class TextDocument
   Section: Buffer Range Details
   ###
 
+  getRange: ->
+    Range(Point.zero(), @getEndPosition())
+
   rangeForRow: (row, includeNewline) ->
     if includeNewline
       Range(Point(row, 0), @clipPosition(Point(row + 1, 0)))
