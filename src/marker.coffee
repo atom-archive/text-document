@@ -4,7 +4,7 @@ Range = require "./range"
 
 module.exports =
 class Marker
-  constructor: (@id, @manager, range, @properties) ->
+  constructor: (@id, @store, range, @properties) ->
     @emitter = new Emitter
     @valid = true
 
@@ -17,23 +17,23 @@ class Marker
     @invalidationStrategy = @properties.invalidate ? 'overlap'
     delete @properties.invalidate
 
-    @manager.setMarkerHasTail(@id, @tailed)
+    @store.setMarkerHasTail(@id, @tailed)
     @previousEventState = @getEventState(range)
 
   getRange: ->
-    @manager.getMarkerRange(@id)
+    @store.getMarkerRange(@id)
 
   getHeadPosition: ->
     if @reversed
-      @manager.getMarkerStartPosition(@id)
+      @store.getMarkerStartPosition(@id)
     else
-      @manager.getMarkerEndPosition(@id)
+      @store.getMarkerEndPosition(@id)
 
   getTailPosition: ->
     if @reversed
-      @manager.getMarkerEndPosition(@id)
+      @store.getMarkerEndPosition(@id)
     else
-      @manager.getMarkerStartPosition(@id)
+      @store.getMarkerStartPosition(@id)
 
   setRange: (range, properties) ->
     if properties?.reversed?
@@ -119,9 +119,9 @@ class Marker
       changed = true
 
     unless newRange.isEqual(oldRange)
-      @manager.setMarkerRange(@id, newRange)
+      @store.setMarkerRange(@id, newRange)
     unless @tailed is wasTailed
-      @manager.setMarkerHasTail(@id, @tailed)
+      @store.setMarkerHasTail(@id, @tailed)
     @emitChangeEvent(newRange, textChanged, propertiesChanged)
     changed
 
@@ -162,13 +162,13 @@ class Marker
   hasTail: -> @tailed
 
   destroy: ->
-    @manager.destroyMarker(@id)
+    @store.destroyMarker(@id)
     @emitter.emit("did-destroy")
 
   copy: (options) ->
     properties = clone(@properties)
     properties[key] = value for key, value of options
-    @manager.markRange(@getRange(), options)
+    @store.markRange(@getRange(), options)
 
   ###
   Section: Event Subscription
