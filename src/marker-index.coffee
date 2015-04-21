@@ -48,9 +48,8 @@ class Node
         i += newChildren.length - 1
       break if rangeIsEmpty
 
-    if @children.length > BRANCHING_THRESHOLD
-      splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
-      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+    if newNodes = @splitIfNeeded()
+      newNodes
     else
       addSet(@ids, ids)
       return
@@ -60,10 +59,7 @@ class Node
     i = 0
     while i < @children.length
       @children[i].delete(id)
-      if @children[i - 1]?.shouldMergeWith(@children[i])
-        @children.splice(i - 1, 2, @children[i - 1].merge(@children[i]))
-      else
-        i++
+      i++ unless @mergeChildrenIfNeeded(i - 1)
 
   splice: (position, oldExtent, newExtent, exclusiveIds, precedingIds) ->
     oldRangeIsEmpty = oldExtent.isZero()
@@ -83,7 +79,6 @@ class Node
       child = @children[i]
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
-      i++
 
       switch childEnd.compare(position)
         when -1 then childPrecedesRange = true
@@ -100,19 +95,14 @@ class Node
         else
           relativeStart = position.traversalFrom(childStart)
           if splitNodes = child.splice(relativeStart, oldExtent, newExtent, exclusiveIds, precedingIds)
-            @children.splice(i - 1, 1, splitNodes...)
+            @children.splice(i, 1, splitNodes...)
           remainderToDelete = spliceOldEnd.traversalFrom(childEnd)
           childEnd = childStart.traverse(child.extent)
 
-      if @children[i - 2]?.shouldMergeWith(child)
-        @children.splice(i - 2, 2, @children[i - 2].merge(child))
-        i--
-
+      i++ unless @mergeChildrenIfNeeded(i - 1)
       precedingIds = child.ids
 
-    if @children.length > BRANCHING_THRESHOLD
-      splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
-      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+    @splitIfNeeded()
 
   getStart: (id) ->
     return unless @ids.has(id)
@@ -187,6 +177,18 @@ class Node
     if children[joinIndex].shouldMergeWith(children[joinIndex + 1])
       children.splice(joinIndex, 2, children[joinIndex].merge(children[joinIndex + 1]))
     new Node(children)
+
+  splitIfNeeded: ->
+    if (branchingRatio = @children.length / BRANCHING_THRESHOLD) > 1
+      splitIndex = Math.ceil(branchingRatio)
+      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+
+  mergeChildrenIfNeeded: (i) ->
+    if @children[i]?.shouldMergeWith(@children[i + 1])
+      @children.splice(i, 2, @children[i].merge(@children[i + 1]))
+      true
+    else
+      false
 
   toString: (indentLevel=0) ->
     indent = ""
