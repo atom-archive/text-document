@@ -55,6 +55,7 @@ class Marker
   update: ({reversed, tailed, valid, headPosition, tailPosition, range, properties}, textChanged=false) ->
     changed = propertiesChanged = false
 
+    wasTailed = @tailed
     newRange = oldRange = @getRange()
     if @reversed
       oldHeadPosition = oldRange.start
@@ -110,6 +111,8 @@ class Marker
 
     unless newRange.isEqual(oldRange)
       @manager.setMarkerRange(@id, newRange)
+    unless @tailed is wasTailed
+      @manager.setMarkerHasTail(@id, @tailed)
     @emitChangeEvent(newRange, textChanged, propertiesChanged)
     changed
 

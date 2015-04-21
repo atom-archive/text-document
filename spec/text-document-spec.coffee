@@ -735,7 +735,7 @@ describe "TextDocument", ->
               expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
               expect(marker.isValid()).toBe true
 
-        xdescribe "when the marker has no tail", ->
+        describe "when the marker has no tail", ->
           it "interprets the change as being outside the marker for all invalidation strategies", ->
             for marker in allStrategies
               marker.setRange([[0, 6], [0, 11]], reversed: true)
