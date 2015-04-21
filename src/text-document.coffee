@@ -74,7 +74,7 @@ class TextDocument
     @emitter.on("did-change-path", callback)
 
   preemptDidChange: (callback) ->
-    @emitter.preempt("did-change-path", callback)
+    @emitter.preempt("did-change", callback)
 
   onDidUpdateMarkers: (callback) ->
     @emitter.on("did-update-markers", callback)

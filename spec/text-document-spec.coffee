@@ -352,16 +352,26 @@ describe "TextDocument", ->
           newText: "y there\r\ncat\nwhat"
         }]
 
-      it "notifies ::onDidChange observers with the relevant details after a change", ->
+      it "notifies ::onDidChange and ::preemptDidChange observers with the relevant details after a change", ->
         changes = []
-        document.onDidChange (change) -> changes.push(change)
+        document.onDidChange (change) -> changes.push(['onDidChange', change])
+        document.preemptDidChange (change) -> changes.push(['preemptDidChange', change])
+
         document.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
-        expect(changes).toEqual [{
-          oldRange: [[0, 2], [2, 3]]
-          newRange: [[0, 2], [2, 4]]
-          oldText: "llo\nworld\r\nhow"
-          newText: "y there\r\ncat\nwhat"
-        }]
+        expect(changes).toEqual [
+          ['preemptDidChange', {
+            oldRange: [[0, 2], [2, 3]]
+            newRange: [[0, 2], [2, 4]]
+            oldText: "llo\nworld\r\nhow"
+            newText: "y there\r\ncat\nwhat"
+          }]
+          ['onDidChange', {
+            oldRange: [[0, 2], [2, 3]]
+            newRange: [[0, 2], [2, 4]]
+            oldText: "llo\nworld\r\nhow"
+            newText: "y there\r\ncat\nwhat"
+          }]
+        ]
 
       it "returns the newRange of the change", ->
         expect(document.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat"), normalizeLineEndings: false).toEqual [[0, 2], [2, 4]]
