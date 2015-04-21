@@ -6,17 +6,18 @@ module.exports =
 class Marker
   constructor: (@id, @manager, range, @properties) ->
     @emitter = new Emitter
-    @reversed = false
     @valid = true
-    @tailed = true
 
-    if @properties.reversed?
-      @reversed = @properties.reversed
-      delete @properties.reversed
-    if @properties.invalidate?
-      @invalidationStrategy = @properties.invalidate
-      delete @properties.invalidate
+    @tailed = @properties.tailed ? true
+    delete @properties.tailed
 
+    @reversed = @properties.reversed ? false
+    delete @properties.reversed
+
+    @invalidationStrategy = @properties.invalidate ? 'overlap'
+    delete @properties.invalidate
+
+    @manager.setMarkerHasTail(@id, @tailed)
     @previousEventState = @getEventState(range)
 
   getRange: ->
@@ -51,6 +52,14 @@ class Marker
 
   plantTail: ->
     @update({tailed: true})
+
+  getInvalidationStrategy: -> @invalidationStrategy
+
+  getProperties: -> @properties
+
+  setProperties: (newProperties) ->
+    for key, value of newProperties
+      @properties[key] = value
 
   update: ({reversed, tailed, valid, headPosition, tailPosition, range, properties}, textChanged=false) ->
     changed = propertiesChanged = false
@@ -144,12 +153,6 @@ class Marker
       else
         return false unless @properties[key] is value
     true
-
-  getProperties: -> @properties
-
-  setProperties: (newProperties) ->
-    for key, value of newProperties
-      @properties[key] = value
 
   compare: (other) ->
     @getRange().compare(other.getRange())

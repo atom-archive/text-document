@@ -174,16 +174,21 @@ describe "TextDocument", ->
 
   describe "markers", ->
     describe "::markPosition(position, properties)", ->
-      it "returns a marker for the given position with the given properties (plus defaults)", ->
-        marker = document.markPosition([0, 6], a: '1')
-        expect(marker.getRange()).toEqual Range(Point(0, 6), Point(0, 6))
-        expect(marker.getHeadPosition()).toEqual Point(0, 6)
-        expect(marker.getTailPosition()).toEqual Point(0, 6)
-        expect(marker.getProperties()).toEqual {a: '1'}
+      it "creates a tail-less marker at the given position", ->
+        marker = document.markPosition([0, 6])
+        expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+        expect(marker.getHeadPosition()).toEqual [0, 6]
+        expect(marker.getTailPosition()).toEqual [0, 6]
+        expect(marker.isReversed()).toBe false
+        expect(marker.hasTail()).toBe false
 
-        expect(marker.matchesParams({})).toBe true
-        expect(marker.matchesParams(a: '1')).toBe true
-        expect(marker.matchesParams(a: '2')).toBe false
+      it "allows an invalidation strategy to be assigned", ->
+        marker = document.markPosition([0, 3], invalidate: 'inside')
+        expect(marker.getInvalidationStrategy()).toBe 'inside'
+
+      it "allows custom state to be assigned", ->
+        marker = document.markPosition([0, 3], foo: 1, bar: 2)
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
 
       it "allows the marker to be retrieved with ::getMarker(id)", ->
         marker1 = document.markPosition([0, 6], a: '1', b: '2')
@@ -741,6 +746,8 @@ describe "TextDocument", ->
               marker.setRange([[0, 6], [0, 11]], reversed: true)
               marker.clearTail()
               expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+            allStrategies.push(document.markPosition([0, 6]))
 
             document.setTextInRange([[0, 6], [0, 6]], "ABC")
 

@@ -81,7 +81,6 @@ class MarkerStore
 
   markRange: (range, options={}) ->
     range = Range.fromObject(range)
-    options.invalidate ?= 'overlap'
     marker = new Marker(String(@nextMarkerId++), this, range, options)
     @markersById[marker.id] = marker
     @index.insert(marker.id, range.start, range.end)
@@ -91,7 +90,10 @@ class MarkerStore
     marker
 
   markPosition: (position, options) ->
-    @markRange(Range(position, position), options)
+    properties = {}
+    properties[key] = value for key, value of options
+    properties.tailed = false
+    @markRange(Range(position, position), properties)
 
   splice: (start, oldExtent, newExtent) ->
     end = start.traverse(oldExtent)
