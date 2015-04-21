@@ -294,10 +294,12 @@ class MarkerIndex
 
   delete: (id) ->
     @rootNode.delete(id)
+    @condenseIfNeeded()
 
   splice: (position, oldExtent, newExtent) ->
     if splitNodes = @rootNode.splice(position, oldExtent, newExtent, @exclusiveIds, new Set)
       @rootNode = new Node(splitNodes)
+    @condenseIfNeeded()
 
   isExclusive: (id) ->
     @exclusiveIds.has(id)
@@ -371,3 +373,11 @@ class MarkerIndex
     for id, {range: {start, end}, isExclusive} of snapshot
       @insert(id, start, end)
       @setExclusive(id, isExclusive)
+
+  ###
+  Section: Private
+  ###
+
+  condenseIfNeeded: ->
+    while @rootNode.children?.length is 1
+      @rootNode = @rootNode.children[0]
