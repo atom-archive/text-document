@@ -44,7 +44,7 @@ class History
     groupedCheckpoint.groupingInterval = groupingInterval
 
   pushChange: (change) ->
-    @undoStack.push(new Checkpoint, change)
+    @undoStack.push(change)
     @redoStack.length = 0
 
   popUndoStack: (redoMetadata) ->
