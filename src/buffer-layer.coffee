@@ -49,7 +49,7 @@ class BufferLayerIterator
     if next.value? and @layer.contentOverlapsActiveRegion(@position, next.value)
       @patchIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
-      @patchIterator.splice(extent, next.value)
+      @patchIterator.splice(extent, Point(0, next.value.length), next.value)
 
     @inputPosition = nextInputPosition
     @position = nextPosition
@@ -67,7 +67,7 @@ class BufferLayerIterator
     @inputPosition.copy()
 
   splice: (extent, content) ->
-    @patchIterator.splice(extent, content)
+    @patchIterator.splice(extent, Point(0, content.length), content)
     @position = @patchIterator.getPosition()
     @inputPosition = @patchIterator.getInputPosition()
     @inputIterator.seek(@inputPosition)
