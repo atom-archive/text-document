@@ -4,14 +4,14 @@ Patch = require "./patch"
 
 module.exports =
 class BufferLayer extends Layer
-  constructor: (@source) ->
+  constructor: (@inputLayer) ->
     super
     @patch = new Patch
     @activeRegionStart = null
     @activeRegionEnd = null
 
   buildIterator: ->
-    new BufferLayerIterator(this, @source.buildIterator(), @patch.buildIterator())
+    new BufferLayerIterator(this, @inputLayer.buildIterator(), @patch.buildIterator())
 
   setActiveRegion: (start, end) ->
     @activeRegionStart = start
@@ -23,9 +23,9 @@ class BufferLayer extends Layer
       not (column > @activeRegionEnd.column)
 
 class BufferLayerIterator
-  constructor: (@layer, @sourceIterator, @patchIterator) ->
+  constructor: (@layer, @inputIterator, @patchIterator) ->
     @position = Point.zero()
-    @sourcePosition = Point.zero()
+    @inputPosition = Point.zero()
 
   next: ->
     comparison = @patchIterator.getPosition().compare(@position)
@@ -34,42 +34,42 @@ class BufferLayerIterator
       next = @patchIterator.next()
       if next.value?
         @position = @patchIterator.getPosition()
-        @sourcePosition = @patchIterator.getSourcePosition()
+        @inputPosition = @patchIterator.getInputPosition()
         return {value: next.value, done: next.done}
 
-    @sourceIterator.seek(@sourcePosition)
-    next = @sourceIterator.next()
-    nextSourcePosition = @sourceIterator.getPosition()
+    @inputIterator.seek(@inputPosition)
+    next = @inputIterator.next()
+    nextInputPosition = @inputIterator.getPosition()
 
-    sourceOvershoot = @sourceIterator.getPosition().traversalFrom(@patchIterator.getSourcePosition())
-    if sourceOvershoot.compare(Point.zero()) > 0
-      next.value = next.value.substring(0, next.value.length - sourceOvershoot.column)
+    inputOvershoot = @inputIterator.getPosition().traversalFrom(@patchIterator.getInputPosition())
+    if inputOvershoot.compare(Point.zero()) > 0
+      next.value = next.value.substring(0, next.value.length - inputOvershoot.column)
       nextPosition = @patchIterator.getPosition()
     else
-      nextPosition = @position.traverse(nextSourcePosition.traversalFrom(@sourcePosition))
+      nextPosition = @position.traverse(nextInputPosition.traversalFrom(@inputPosition))
 
     if next.value? and @layer.contentOverlapsActiveRegion(@position, next.value)
       @patchIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
       @patchIterator.splice(extent, next.value)
 
-    @sourcePosition = nextSourcePosition
+    @inputPosition = nextInputPosition
     @position = nextPosition
     next
 
   seek: (@position) ->
     @patchIterator.seek(@position)
-    @sourcePosition = @patchIterator.getSourcePosition()
-    @sourceIterator.seek(@sourcePosition)
+    @inputPosition = @patchIterator.getInputPosition()
+    @inputIterator.seek(@inputPosition)
 
   getPosition: ->
     @position.copy()
 
-  getSourcePosition: ->
-    @sourcePosition.copy()
+  getInputPosition: ->
+    @inputPosition.copy()
 
   splice: (extent, content) ->
     @patchIterator.splice(extent, content)
     @position = @patchIterator.getPosition()
-    @sourcePosition = @patchIterator.getSourcePosition()
-    @sourceIterator.seek(@sourcePosition)
+    @inputPosition = @patchIterator.getInputPosition()
+    @inputIterator.seek(@inputPosition)

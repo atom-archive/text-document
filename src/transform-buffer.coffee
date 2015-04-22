@@ -3,32 +3,8 @@ Point = require "./point"
 CLIPPING__OPEN_INTERVAL = Symbol('clipping (open interval)')
 
 module.exports =
-class TransformIterator
-  constructor: (transform, sourceIterator) ->
-    @transformBuffer = new TransformBuffer(transform, sourceIterator)
-
-  next: ->
-    next = @transformBuffer.operate()
-    if next
-      {content, @clipping, @position, @sourcePosition} = next
-      {value: content, done: false}
-    else
-      {value: undefined, done: true}
-
-  reset: (position, sourcePosition) ->
-    @transformBuffer.reset(position, sourcePosition)
-
-  getPosition: ->
-    @position.copy()
-
-  getSourcePosition: ->
-    @sourcePosition.copy()
-
-  getClippingStatus: ->
-    @clipping
-
 class TransformBuffer
-  constructor: (@transformer, @sourceIterator) ->
+  constructor: (@transformer, @inputIterator) ->
     @reset(Point.zero(), Point.zero())
     @transformContext = {
       clipping: open: CLIPPING__OPEN_INTERVAL
@@ -37,27 +13,26 @@ class TransformBuffer
       transform: @transform.bind(this)
     }
 
-  operate: ->
+  next: ->
     @inputIndex = 0
     @transformer.operate(@transformContext) unless @outputs.length > 0
     @outputs.shift()
 
-  reset: (position, sourcePosition) ->
+  reset: (position, inputPosition) ->
     @position = position.copy()
-    @sourcePosition = sourcePosition.copy()
+    @inputPosition = inputPosition.copy()
     @outputs = []
     @inputs = []
     @inputIndex = 0
-    @sourceIterator.seek(sourcePosition)
 
   read: ->
     if input = @inputs[@inputIndex]
       content = input.content
     else
-      content = @sourceIterator.next().value
+      content = @inputIterator.next().value
       @inputs.push(
         content: content
-        sourcePosition: @sourceIterator.getPosition()
+        inputPosition: @inputIterator.getPosition()
       )
     @inputIndex++
     content
@@ -71,23 +46,23 @@ class TransformBuffer
       producedExtent ?= Point(0, producedContent.length)
       @produce(producedContent, producedExtent, clipping)
     else
-      startSourcePosition = @sourcePosition.copy()
+      startInputPosition = @inputPosition.copy()
       consumedContent = @consume(consumedCount)
-      consumedExtent = @sourcePosition.traversalFrom(startSourcePosition)
+      consumedExtent = @inputPosition.traversalFrom(startInputPosition)
       @produce(consumedContent, consumedExtent, clipping)
 
   consume: (count) ->
     consumedContent = ""
     while count > 0
       if count >= @inputs[0].content.length
-        {content, @sourcePosition} = @inputs.shift()
+        {content, @inputPosition} = @inputs.shift()
         consumedContent += content
         count -= content.length
         @inputIndex--
       else
         consumedContent += @inputs[0].content.substring(0, count)
         @inputs[0].content = @inputs[0].content.substring(count)
-        @sourcePosition.column += count
+        @inputPosition.column += count
         count = 0
     consumedContent
 
@@ -96,6 +71,6 @@ class TransformBuffer
     @outputs.push(
       content: content
       position: @position.copy()
-      sourcePosition: @sourcePosition.copy()
+      inputPosition: @inputPosition.copy()
       clipping: clipping
     )

@@ -36,13 +36,13 @@ This layer builds on `FileLayer`, storing a portion of the file in memory based 
 
 ### TransformLayer
 
-Transform layers can be instantiated with different transform implementations to implement things like tab expansion and soft wrap. They also store a region map which indexes the spatial correspondence between source and target coordinates. In addition to performing transforms in an initial streaming fashion, transform layers also transform and re-emit change events from the layer below.
+Transform layers can be instantiated with different transform implementations to implement things like tab expansion and soft wrap. They also store a region map which indexes the spatial correspondence between input and target coordinates. In addition to performing transforms in an initial streaming fashion, transform layers also transform and re-emit change events from the layer below.
 
 ### Patch
 
-This class indexes the spatial correspondence between two layers. Each transform layer uses a region map to efficiently translate positions between its source and target coordinate spaces. It is also used by the `BufferLayer` to store in-memory content.
+This class indexes the spatial correspondence between two layers. Each transform layer uses a region map to efficiently translate positions between its input and target coordinate spaces. It is also used by the `BufferLayer` to store in-memory content.
 
-It's currently implemented as an array of *regions*, with each region having a *source extent*, *target extent*, and *content*. To find a source position corresponding to a target position or vice versa, we simply traverse the array, maintaining the total distance traversed in either dimension. To make this class efficient, this linear data structure will need to be replaced with a tree, possibly a counted B+ tree or some persistent equivalent.
+It's currently implemented as an array of *regions*, with each region having a *input extent*, *target extent*, and *content*. To find an input position corresponding to a target position or vice versa, we simply traverse the array, maintaining the total distance traversed in either dimension. To make this class efficient, this linear data structure will need to be replaced with a tree, possibly a counted B+ tree or some persistent equivalent.
 
 ## Markers
 

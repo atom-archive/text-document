@@ -48,8 +48,8 @@ describe "TransformLayer", ->
         ""
       ]
 
-  describe "when the source layer's content changes", ->
-    it "emits an event and returns content based on the new source content", ->
+  describe "when the input layer's content changes", ->
+    it "emits an event and returns content based on the new input content", ->
       stringLayer = new StringLayer("\nabc\ndefg\n")
       layer = new TransformLayer(stringLayer, new LinesTransform)
 

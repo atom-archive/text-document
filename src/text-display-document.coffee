@@ -15,11 +15,11 @@ class TextDisplayDocument
     ]
 
     @layersByIndex = []
-    sourceLayer = @textDocument.linesLayer
+    inputLayer = @textDocument.linesLayer
     for transform in transforms
-      layer = new TransformLayer(sourceLayer, transform)
+      layer = new TransformLayer(inputLayer, transform)
       @layersByIndex.push(layer)
-      sourceLayer = layer
+      inputLayer = layer
 
   tokenizedLinesForScreenRows: (start, end) ->
     topLayer = @layersByIndex[@layersByIndex.length - 1]
@@ -29,10 +29,10 @@ class TextDisplayDocument
   screenPositionForBufferPosition: (position) ->
     position = @textDocument.clipPosition(position)
     for layer in @layersByIndex
-      position = layer.fromSourcePosition(position, clip.backward)
+      position = layer.fromInputPosition(position, clip.backward)
     position
 
   bufferPositionForScreenPosition: (position) ->
     for layer in @layersByIndex by -1
-      position = layer.toSourcePosition(position, clip.backward)
+      position = layer.toInputPosition(position, clip.backward)
     @textDocument.clipPosition(position)
