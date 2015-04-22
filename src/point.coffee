@@ -86,10 +86,7 @@ class Point
       else
         new Point(0, @column - other.column)
     else
-      if @row is Infinity and other.row is Infinity
-        new Point(0, @column)
-      else
-        new Point(@row - other.row, @column)
+      new Point(@row - other.row, @column)
 
   toString: ->
     "(#{@row}, #{@column})"
