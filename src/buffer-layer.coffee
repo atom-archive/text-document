@@ -26,12 +26,12 @@ class BufferLayerIterator
     @inputPosition = Point.zero()
 
   next: ->
-    comparison = @patchIterator.getPosition().compare(@position)
+    comparison = @patchIterator.getOutputPosition().compare(@position)
     if comparison <= 0
       @patchIterator.seek(@position) if comparison < 0
       next = @patchIterator.next()
       if next.value?
-        @position = @patchIterator.getPosition()
+        @position = @patchIterator.getOutputPosition()
         @inputPosition = @patchIterator.getInputPosition()
         return {value: next.value, done: next.done}
 
@@ -42,7 +42,7 @@ class BufferLayerIterator
     inputOvershoot = @inputIterator.getPosition().traversalFrom(@patchIterator.getInputPosition())
     if inputOvershoot.compare(Point.zero()) > 0
       next.value = next.value.substring(0, next.value.length - inputOvershoot.column)
-      nextPosition = @patchIterator.getPosition()
+      nextPosition = @patchIterator.getOutputPosition()
     else
       nextPosition = @position.traverse(nextInputPosition.traversalFrom(@inputPosition))
 
@@ -68,6 +68,6 @@ class BufferLayerIterator
 
   splice: (extent, content) ->
     @patchIterator.splice(extent, Point(0, content.length), content)
-    @position = @patchIterator.getPosition()
+    @position = @patchIterator.getOutputPosition()
     @inputPosition = @patchIterator.getInputPosition()
     @inputIterator.seek(@inputPosition)
