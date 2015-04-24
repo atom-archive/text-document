@@ -70,7 +70,7 @@ describe "BufferLayer", ->
           expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
           inputLayer.reset()
 
-          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
+          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "defghi", "jkl"]
           expect(inputLayer.getRecordedReads()).toEqual ["abc", "jkl", undefined]
 
     describe "::splice(start, extent, content)", ->
