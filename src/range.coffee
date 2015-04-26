@@ -40,6 +40,8 @@ class Range
     [@start.row..@end.row]
 
   freeze: ->
+    @start.freeze()
+    @end.freeze()
     Object.freeze(this)
 
   union: (other) ->
@@ -67,7 +69,7 @@ class Range
     @start.isEqual(other.start) and @end.isEqual(other.end)
 
   coversSameRows: (other) ->
-    other = Row.fromObject(other)
+    other = Range.fromObject(other)
     @start.row is other.start.row and @end.row is other.end.row
 
   intersectsWith: (other, exclusive) ->
@@ -78,7 +80,7 @@ class Range
       @end.isGreaterThanOrEqual(other.start) and @start.isLessThanOrEqual(other.end)
 
   intersectsRow: (row) ->
-    @start.row <= row <= @end.row
+    @start.row <= row <= @end.row or @start.row >= row >= @end.row
 
   intersectsRowRange: (startRow, endRow) ->
     [startRow, endRow] = [endRow, startRow] if startRow > endRow
@@ -100,6 +102,9 @@ class Range
       @start.isLessThan(other.start) and @end.isGreaterThan(other.end)
     else
       @start.isLessThanOrEqual(other.start) and @end.isGreaterThanOrEqual(other.end)
+
+  @deserialize: (array)->
+    Range.fromObject(array)
 
   serialize: ->
     [@start.serialize(), @end.serialize()]
