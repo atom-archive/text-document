@@ -58,7 +58,7 @@ class Range
     Range(@start.traverse(delta), @end.traverse(delta))
 
   compare: (other) ->
-    other = @constructor.fromObject(other)
+    other = Range.fromObject(other)
     if value = @start.compare(other.start)
       value
     else
