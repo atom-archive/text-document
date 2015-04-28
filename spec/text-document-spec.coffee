@@ -1383,16 +1383,8 @@ describe "TextDocument", ->
           result = document.groupChangesSinceCheckpoint(checkpoint2)
           expect(result).toBe false
 
-          console.log "Before undo:"
-          console.log document.bufferLayer.patch.rootNode.toString()
           document.undo()
           expect(document.getText()).toBe("one\n")
-
-          console.log ""
-          console.log "After undo"
-          console.log "It looks like we're not adjusting the extent of branch containing 'one\\n':\n"
-          console.log document.bufferLayer.patch.rootNode.toString()
-          return
 
           document.redo()
           expect(document.getText()).toBe """
