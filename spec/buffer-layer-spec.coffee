@@ -3,7 +3,7 @@ StringLayer = require "../spec/string-layer"
 BufferLayer = require "../src/buffer-layer"
 SpyLayer = require "./spy-layer"
 Random = require "random-seed"
-{getAllIteratorValues} = require "./spec-helper"
+{getAllIteratorValues, currentSpecFailed} = require "./spec-helper"
 
 describe "BufferLayer", ->
   describe "::slice(start, end)", ->
@@ -93,26 +93,37 @@ describe "BufferLayer", ->
         expect(buffer.slice()).toBe "ab1234fghijHELLO"
 
   describe "randomized mutations", ->
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    getContent = (random) ->
+      length = random(20)
+      (alphabet[random(26)].toUpperCase() for k in [0..length]).join("")
+
+    getSplice = (random, length) ->
+      choice = random(10)
+      startColumn = random(length)
+      content = getContent(random)
+
+      # 60% insertions, 40% replacements
+      if choice < 6
+        [startColumn, 0, content]
+      else
+        [startColumn, random((length - startColumn) / 2), content]
+
     it "behaves as if it were reading and writing directly to the underlying layer", ->
-      for i in [0..30] by 1
+      for i in [0..20] by 1
         seed = Date.now()
         # seed = 1426552034823
         random = new Random(seed)
 
-        oldContent = "abcdefghijklmnopqrstuvwxyz"
-        inputLayer = new StringLayer(oldContent)
-        buffer = new BufferLayer(inputLayer)
+        oldContent = Array(5).join(alphabet)
         reference = new StringLayer(oldContent)
+        buffer = new BufferLayer(new StringLayer(oldContent))
 
-        for j in [0..10] by 1
-          currentContent = buffer.slice()
-          newContentLength = random(20)
-          newContent = (oldContent[random(26)] for k in [0..newContentLength]).join("").toUpperCase()
-
-          startColumn = random(currentContent.length)
-          endColumn = random.intBetween(startColumn, currentContent.length)
+        for j in [0..50] by 1
+          [startColumn, columnCount, newContent] = getSplice(random, buffer.slice().length)
           start = Point(0, startColumn)
-          extent = Point(0, endColumn - startColumn)
+          extent = Point(0, columnCount)
 
           # console.log buffer.slice()
           # console.log "buffer.splice(#{start}, #{extent}, #{newContent})"
@@ -121,4 +132,4 @@ describe "BufferLayer", ->
           buffer.splice(start, extent, newContent)
 
           expect(buffer.slice()).toBe(reference.slice(), "Seed: #{seed}, Iteration: #{j}")
-          return unless buffer.slice() is reference.slice()
+          return if currentSpecFailed()
