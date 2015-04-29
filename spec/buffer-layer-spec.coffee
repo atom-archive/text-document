@@ -95,28 +95,28 @@ describe "BufferLayer", ->
   describe "randomized mutations", ->
     alphabet = "abcdefghijklmnopqrstuvwxyz"
 
-    getContent = (random) ->
-      length = random(20)
-      (alphabet[random(26)].toUpperCase() for k in [0..length]).join("")
-
     getSplice = (random, length) ->
-      choice = random(10)
-      startColumn = random(length)
-      content = getContent(random)
+      operation = random(10)
+      start = random(length)
+      oldLength = random((length - start) / 2)
+      newLength = random(20)
+      newContent = (alphabet[random(26)].toUpperCase() for k in [0..newLength]).join("")
 
-      # 60% insertions, 40% replacements
-      if choice < 6
-        [startColumn, 0, content]
+      # 60% insertions, 10% deletions, 40% replacements
+      if operation < 6
+        [start, 0, newContent]
+      else if operation < 8
+        [start, oldLength, ""]
       else
-        [startColumn, random((length - startColumn) / 2), content]
+        [start, oldLength, newContent]
 
     it "behaves as if it were reading and writing directly to the underlying layer", ->
       for i in [0..20] by 1
         seed = Date.now()
-        # seed = 1426552034823
+        # seed = 1430349185952
         random = new Random(seed)
 
-        oldContent = Array(5).join(alphabet)
+        oldContent = Array(4).join(alphabet)
         reference = new StringLayer(oldContent)
         buffer = new BufferLayer(new StringLayer(oldContent))
 
@@ -125,11 +125,16 @@ describe "BufferLayer", ->
           start = Point(0, startColumn)
           extent = Point(0, columnCount)
 
-          # console.log buffer.slice()
-          # console.log "buffer.splice(#{start}, #{extent}, #{newContent})"
+          # console.log "#{j}: splice(#{start}, #{extent}, '#{newContent}')"
 
           reference.splice(start, extent, newContent)
           buffer.splice(start, extent, newContent)
+
+          # console.log ""
+          # console.log buffer.slice()
+          # console.log ""
+          # console.log buffer.patch.rootNode.toString()
+          # console.log ""
 
           expect(buffer.slice()).toBe(reference.slice(), "Seed: #{seed}, Iteration: #{j}")
           return if currentSpecFailed()

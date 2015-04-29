@@ -33,15 +33,15 @@ class BufferLayerIterator
       if next.value?
         @position = @patchIterator.getOutputPosition()
         @inputPosition = @patchIterator.getInputPosition()
-        return {value: next.value, done: next.done}
+        return next
 
     @inputIterator.seek(@inputPosition)
     next = @inputIterator.next()
     nextInputPosition = @inputIterator.getPosition()
 
     inputOvershoot = @inputIterator.getPosition().traversalFrom(@patchIterator.getInputPosition())
-    if inputOvershoot.compare(Point.zero()) > 0
-      next.value = next.value.substring(0, next.value.length - inputOvershoot.column)
+    if inputOvershoot.isPositive()
+      next.value = next.value.slice(0, next.value.length - inputOvershoot.column) if next.value
       nextPosition = @patchIterator.getOutputPosition()
     else
       nextPosition = @position.traverse(nextInputPosition.traversalFrom(@inputPosition))
