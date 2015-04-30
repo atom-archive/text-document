@@ -113,7 +113,8 @@ describe "BufferLayer", ->
     it "behaves as if it were reading and writing directly to the underlying layer", ->
       for i in [0..20] by 1
         seed = Date.now()
-        # seed = 1430375421399
+        # seed = 1430431912858
+        # console.log 'seed', seed
         random = new Random(seed)
 
         oldContent = Array(4).join(alphabet)
