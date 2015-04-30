@@ -363,10 +363,7 @@ class MarkerIndex
   dump: ->
     snapshot = {}
     @rootNode.ids.forEach (id) =>
-      snapshot[id] = {
-        range: null
-        isExclusive: @exclusiveIds.has(id)
-      }
+      snapshot[id] = {range: null, isExclusive: @exclusiveIds.has(id)}
     @rootNode.dump(Point.zero(), snapshot)
     snapshot
 

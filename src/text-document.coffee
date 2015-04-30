@@ -234,7 +234,7 @@ class TextDocument
       @emitter.emit("did-update-markers")
 
   redo: ->
-    if poppedEntries = @history.popRedoStack()
+    if poppedEntries = @history.popRedoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in poppedEntries.changes
       @markerStore.restoreFromSnapshot(poppedEntries.metadata)
       @emitter.emit("did-update-markers")

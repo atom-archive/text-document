@@ -936,15 +936,43 @@ describe "TextDocument", ->
 
       describe "when a change precedes the creation of a marker", ->
         it "updates the marker as normal when undoing / redoing the change", ->
-          document.setTextInRange([[0, 1], [0, 2]], "ABC")
-          marker1 = document.markRange([[0, 5], [0, 6]])
-          document.undo()
-          expect(marker1.getRange()).toEqual [[0, 3], [0, 4]]
+          document.append("something")
+          document.setTextInRange([[0, 1], [0, 3]], "ABC")
 
-          marker2 = document.markRange([[0, 7], [0, 9]])
+          preservedMarker1 = document.markRange([[0, 6], [0, 7]])
+          invalidatedMarker1 = document.markRange([[0, 3], [0, 5]])
+          document.undo()
+
+          expect(preservedMarker1.getRange()).toEqual [[0, 5], [0, 6]]
+          expect(preservedMarker1.isValid()).toBe true
+          expect(invalidatedMarker1.getRange()).toEqual [[0, 3], [0, 4]]
+          expect(invalidatedMarker1.isValid()).toBe false
+
+          preservedMarker2 = document.markRange([[0, 7], [0, 9]])
+          invalidatedMarker2 = document.markRange([[0, 0], [0, 2]])
           document.redo()
-          expect(marker1.getRange()).toEqual [[0, 5], [0, 6]]
-          expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
+
+          expect(preservedMarker1.getRange()).toEqual [[0, 6], [0, 7]]
+          expect(preservedMarker1.isValid()).toBe true
+          expect(invalidatedMarker1.getRange()).toEqual [[0, 3], [0, 5]]
+          expect(invalidatedMarker1.isValid()).toBe true
+
+          expect(preservedMarker2.getRange()).toEqual [[0, 8], [0, 10]]
+          expect(preservedMarker2.isValid()).toBe true
+          expect(invalidatedMarker2.getRange()).toEqual [[0, 0], [0, 4]]
+          expect(invalidatedMarker2.isValid()).toBe false
+
+          document.undo()
+
+          expect(preservedMarker1.getRange()).toEqual [[0, 5], [0, 6]]
+          expect(preservedMarker1.isValid()).toBe true
+          expect(invalidatedMarker1.getRange()).toEqual [[0, 3], [0, 4]]
+          expect(invalidatedMarker1.isValid()).toBe false
+
+          expect(preservedMarker2.getRange()).toEqual [[0, 7], [0, 9]]
+          expect(preservedMarker2.isValid()).toBe true
+          expect(invalidatedMarker2.getRange()).toEqual [[0, 0], [0, 2]]
+          expect(invalidatedMarker2.isValid()).toBe true
 
       describe "when multiple changes occur in a transaction", ->
         it "correctly restores markers when the transaction is undone", ->
@@ -1314,8 +1342,6 @@ describe "TextDocument", ->
           result = document.revertToCheckpoint(checkpoint)
           expect(result).toBe(true)
           expect(document.getText()).toBe("hello")
-
-          return
 
           result = document.revertToCheckpoint(checkpoint2)
           expect(result).toBe(false)
