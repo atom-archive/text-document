@@ -997,24 +997,32 @@ describe "TextDocument", ->
           document.undo()
 
           expect(document.getText()).toBe 'foo'
-          expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
           expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-          expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
           expect(marker2.getRange()).toEqual([[0, 3], [0, 3]])
+          expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
 
           marker1Ranges = []
           marker2Ranges = []
 
           document.redo()
 
-          return
-
-          # TODO: investigate these failures.
-
-          expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          expect(document.getText()).toBe 'foo\nbar'
           expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-          expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
           expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
+
+          # TODO: Decide if this behavior change is ok, or we need to somehow
+          # preserve the old behavior of marker positions during mid-transaction
+          # buffer change events. Currently, the above redo causes two insertions
+          # into the buffer. These insertions both happen at the markers' end
+          # positions, which causes the markers to expand. Then, when the
+          # transaction completes, the markers are restored to the correct
+          # positions using snapshots.
+
+          expect(marker1Ranges).toEqual [[[0, 0], [1, 0]], [[0, 0], [1, 3]]]
+          expect(marker2Ranges).toEqual [[[0, 3], [1, 0]], [[0, 3], [1, 3]]]
+          # expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          # expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
 
         it "only records marker patches for direct marker updates", ->
           document.setText("abcd")
