@@ -102,7 +102,7 @@ describe "BufferLayer", ->
       newLength = random(20)
       newContent = (alphabet[random(26)].toUpperCase() for k in [0..newLength]).join("")
 
-      # 60% insertions, 10% deletions, 40% replacements
+      # 60% insertions, 20% deletions, 20% replacements
       if operation < 6
         [start, 0, newContent]
       else if operation < 8
@@ -113,7 +113,7 @@ describe "BufferLayer", ->
     it "behaves as if it were reading and writing directly to the underlying layer", ->
       for i in [0..20] by 1
         seed = Date.now()
-        # seed = 1430349185952
+        # seed = 1430375421399
         random = new Random(seed)
 
         oldContent = Array(4).join(alphabet)
@@ -131,9 +131,9 @@ describe "BufferLayer", ->
           buffer.splice(start, extent, newContent)
 
           # console.log ""
-          # console.log buffer.slice()
-          # console.log ""
           # console.log buffer.patch.rootNode.toString()
+          # console.log ""
+          # console.log buffer.slice()
           # console.log ""
 
           expect(buffer.slice()).toBe(reference.slice(), "Seed: #{seed}, Iteration: #{j}")
