@@ -1,4 +1,3 @@
-{Emitter} = require "event-kit"
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
@@ -7,9 +6,8 @@ MarkerIndex = require "./marker-index"
 
 module.exports =
 class MarkerStore
-  constructor: ->
+  constructor: (@delegate) ->
     @index = new MarkerIndex
-    @emitter = new Emitter
     @markersById = {}
     @nextMarkerId = 0
 
@@ -83,21 +81,66 @@ class MarkerStore
 
   markRange: (range, options={}) ->
     range = Range.fromObject(range)
-    options.invalidate ?= 'overlap'
-    marker = new Marker(String(@nextMarkerId++), this, options)
+    marker = new Marker(String(@nextMarkerId++), this, range, options)
     @markersById[marker.id] = marker
     @index.insert(marker.id, range.start, range.end)
-    @emitter.emit("did-create-marker", marker)
+    if marker.invalidationStrategy is 'inside'
+      @index.setExclusive(marker.id, true)
+    @delegate.markerCreated(marker)
     marker
 
   markPosition: (position, options) ->
-    @markRange(Range(position, position), options)
-
-  onDidCreateMarker: (callback) ->
-    @emitter.on("did-create-marker", callback)
+    properties = {}
+    properties[key] = value for key, value of options
+    properties.tailed = false
+    @markRange(Range(position, position), properties)
 
   splice: (start, oldExtent, newExtent) ->
+    end = start.traverse(oldExtent)
+
+    intersecting = @index.findIntersecting(start, end)
+    endingAt = @index.findEndingIn(start)
+    startingAt = @index.findStartingIn(end)
+    startingIn = @index.findStartingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
+    endingIn = @index.findEndingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
+
+    for id, marker of @markersById
+      switch marker.invalidationStrategy
+        when 'touch'
+          invalid = intersecting.has(id)
+        when 'inside'
+          invalid = intersecting.has(id) and not (startingAt.has(id) or endingAt.has(id))
+        when 'overlap'
+          invalid = startingIn.has(id) or endingIn.has(id)
+        when 'surround'
+          invalid = startingIn.has(id) and endingIn.has(id)
+        when 'never'
+          invalid = false
+
+      marker.valid = not invalid
+
     @index.splice(start, oldExtent, newExtent)
+
+  restoreFromSnapshot: (snapshots) ->
+    for id, marker of @markersById
+      if snapshot = snapshots[id]
+        marker.update(snapshot, true)
+
+  emitChangeEvents: ->
+    for id, marker of @markersById
+      marker.emitChangeEvent(marker.getRange(), true, false)
+
+  createSnapshot: ->
+    markerSnapshots = @index.dump()
+    for id, marker of @markersById
+      snapshot = markerSnapshots[id]
+      delete snapshot.isExclusive
+      snapshot.reversed = marker.isReversed()
+      snapshot.tailed = marker.hasTail()
+      snapshot.invalidate = marker.invalidationStrategy
+      snapshot.valid = marker.isValid()
+      snapshot.properties = marker.properties
+    markerSnapshots
 
   ###
   Section: Marker API
@@ -115,3 +158,11 @@ class MarkerStore
 
   getMarkerEndPosition: (id) ->
     @index.getEnd(id)
+
+  setMarkerRange: (id, range) ->
+    @index.delete(id)
+    {start, end} = Range.fromObject(range)
+    @index.insert(id, @delegate.clipPosition(start), @delegate.clipPosition(end))
+
+  setMarkerHasTail: (id, hasTail) ->
+    @index.setExclusive(id, not hasTail)

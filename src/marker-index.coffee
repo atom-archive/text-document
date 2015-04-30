@@ -48,9 +48,8 @@ class Node
         i += newChildren.length - 1
       break if rangeIsEmpty
 
-    if @children.length > BRANCHING_THRESHOLD
-      splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
-      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+    if newNodes = @splitIfNeeded()
+      newNodes
     else
       addSet(@ids, ids)
       return
@@ -60,35 +59,50 @@ class Node
     i = 0
     while i < @children.length
       @children[i].delete(id)
-      if @children[i - 1]?.shouldMergeWith(@children[i])
-        @children.splice(i - 1, 2, @children[i - 1].merge(@children[i]))
-      else
-        i++
+      i++ unless @mergeChildrenIfNeeded(i - 1)
 
-  splice: (position, oldExtent, newExtent, excludedIds) ->
+  splice: (position, oldExtent, newExtent, exclusiveIds, precedingIds) ->
     oldRangeIsEmpty = oldExtent.isZero()
+    spliceOldEnd = position.traverse(oldExtent)
+    spliceNewEnd = position.traverse(newExtent)
+    extentAfterChange = @extent.traversalFrom(spliceOldEnd)
+    @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
+
+    if position.isZero() and oldExtent.isZero()
+      precedingIds?.forEach (id) =>
+        unless exclusiveIds.has(id)
+          @ids.add(id)
+
+    i = 0
     childEnd = Point.zero()
-    for child in @children
+    while i < @children.length
+      child = @children[i]
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
-
-      if remainderToDelete?
-        remainderToDelete = child.splice(Point.zero(), remainderToDelete, Point.zero())
-        continue
 
       switch childEnd.compare(position)
         when -1 then childPrecedesRange = true
         when 0  then childPrecedesRange = not (child.hasEmptyRightmostLeaf() and oldRangeIsEmpty)
         when 1  then childPrecedesRange = false
-      continue if childPrecedesRange
 
-      relativeStart = position.traversalFrom(childStart)
-      remainderToDelete = child.splice(relativeStart, oldExtent, newExtent, excludedIds)
+      unless childPrecedesRange
+        if remainderToDelete?
+          if remainderToDelete.isPositive()
+            previousExtent = child.extent
+            child.splice(Point.zero(), remainderToDelete, Point.zero())
+            remainderToDelete = remainderToDelete.traversalFrom(previousExtent)
+            childEnd = childStart.traverse(child.extent)
+        else
+          relativeStart = position.traversalFrom(childStart)
+          if splitNodes = child.splice(relativeStart, oldExtent, newExtent, exclusiveIds, precedingIds)
+            @children.splice(i, 1, splitNodes...)
+          remainderToDelete = spliceOldEnd.traversalFrom(childEnd)
+          childEnd = childStart.traverse(child.extent)
 
-    @extent = @extent
-      .traverse(newExtent.traversalFrom(oldExtent))
-      .traverse(remainderToDelete)
-    remainderToDelete
+      i++ unless @mergeChildrenIfNeeded(i - 1)
+      precedingIds = child.ids
+
+    @splitIfNeeded()
 
   getStart: (id) ->
     return unless @ids.has(id)
@@ -111,6 +125,13 @@ class Node
       else if end?
         break
     end
+
+  dump: (offset, snapshot) ->
+    childEnd = offset
+    for child in @children
+      childStart = childEnd
+      childEnd = childStart.traverse(child.extent)
+      child.dump(childStart, snapshot)
 
   findContaining: (point, set) ->
     childEnd = Point.zero()
@@ -145,10 +166,29 @@ class Node
     @children[0].hasEmptyLeftmostLeaf()
 
   shouldMergeWith: (other) ->
-    @children.length + other.children.length <= BRANCHING_THRESHOLD
+    childCount = @children.length + other.children.length
+    if @children[@children.length - 1].shouldMergeWith(other.children[0])
+      childCount--
+    childCount <= BRANCHING_THRESHOLD
 
   merge: (other) ->
-    new Node(@children.concat(other.children))
+    children = @children.concat(other.children)
+    joinIndex = @children.length - 1
+    if children[joinIndex].shouldMergeWith(children[joinIndex + 1])
+      children.splice(joinIndex, 2, children[joinIndex].merge(children[joinIndex + 1]))
+    new Node(children)
+
+  splitIfNeeded: ->
+    if (branchingRatio = @children.length / BRANCHING_THRESHOLD) > 1
+      splitIndex = Math.ceil(branchingRatio)
+      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+
+  mergeChildrenIfNeeded: (i) ->
+    if @children[i]?.shouldMergeWith(@children[i + 1])
+      @children.splice(i, 2, @children[i].merge(@children[i + 1]))
+      true
+    else
+      false
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -186,32 +226,33 @@ class Leaf
   delete: (id) ->
     @ids.delete(id)
 
-  splice: (position, spliceOldExtent, spliceNewExtent, excludedIds) ->
-    subtractSet(@ids, excludedIds) if excludedIds?
-    myOldExtent = @extent
-    spliceOldEnd = position.traverse(spliceOldExtent)
-    spliceNewEnd = position.traverse(spliceNewExtent)
-    spliceDelta = spliceNewExtent.traversalFrom(spliceOldExtent)
-
-    if spliceOldEnd.compare(@extent) > 0
-      # If the splice ends after this leaf node, this leaf should end at
-      # the end of the splice.
-      @extent = spliceNewEnd
+  splice: (position, spliceOldExtent, spliceNewExtent, exclusiveIds, precedingIds) ->
+    if position.isZero() and spliceOldExtent.isZero()
+      boundaryIds = new Set
+      addSet(boundaryIds, precedingIds)
+      addSet(boundaryIds, @ids)
+      subtractSet(boundaryIds, exclusiveIds)
+      [new Leaf(spliceNewExtent, boundaryIds), this]
     else
-      # Otherwise, this leaf contains the splice, its size should be adjusted
-      # by the delta.
-      @extent = Point.max(Point.zero(), @extent.traverse(spliceDelta))
-
-    # How does the splice to this leaf's extent compare to the global splice in
-    # the tree's extent implied by the splice? If this leaf grew too much or didn't
-    # shrink enough, we may need to shrink subsequent leaves.
-    @extent.traversalFrom(myOldExtent).traversalFrom(spliceDelta)
+      spliceOldEnd = position.traverse(spliceOldExtent)
+      spliceNewEnd = position.traverse(spliceNewExtent)
+      extentAfterChange = @extent.traversalFrom(spliceOldEnd)
+      @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
+      return
 
   getStart: (id) ->
     Point.zero() if @ids.has(id)
 
   getEnd: (id) ->
     @extent if @ids.has(id)
+
+  dump: (offset, snapshot) ->
+    end = offset.traverse(@extent)
+    @ids.forEach (id) ->
+      if snapshot[id].range?
+        snapshot[id].range.end = end
+      else
+        snapshot[id].range = Range(offset, end)
 
   findContaining: (point, set) ->
     addSet(set, @ids)
@@ -226,10 +267,12 @@ class Leaf
     @extent.isZero()
 
   shouldMergeWith: (other) ->
-    setEqual(@ids, other.ids)
+    setEqual(@ids, other.ids) or @extent.isZero() and other.extent.isZero()
 
   merge: (other) ->
-    new Leaf(@extent.traverse(other.extent), new Set(@ids))
+    ids = new Set(@ids)
+    other.ids.forEach (id) -> ids.add(id)
+    new Leaf(@extent.traverse(other.extent), ids)
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -245,8 +288,7 @@ class Leaf
 module.exports =
 class MarkerIndex
   constructor: ->
-    @exclusiveIds = new Set
-    @rootNode = new Leaf(Point.infinity(), new Set)
+    @clear()
 
   insert: (id, start, end) ->
     if splitNodes = @rootNode.insert(new Set().add(id), start, end)
@@ -254,23 +296,15 @@ class MarkerIndex
 
   delete: (id) ->
     @rootNode.delete(id)
+    @condenseIfNeeded()
 
   splice: (position, oldExtent, newExtent) ->
-    if oldExtent.isZero()
-      startingIds = @findStartingIn(position)
-      endingIds = @findEndingIn(position)
-      addSet(startingIds, endingIds)
-      boundaryIds = startingIds
+    if splitNodes = @rootNode.splice(position, oldExtent, newExtent, @exclusiveIds, new Set)
+      @rootNode = new Node(splitNodes)
+    @condenseIfNeeded()
 
-      if boundaryIds.size > 0
-        if splitNodes = @rootNode.insert(boundaryIds, position, position)
-          @rootNode = new Node(splitNodes)
-
-        excludedIds = new Set
-        boundaryIds.forEach (id) =>
-          excludedIds.add(id) if @exclusiveIds.has(id)
-
-    @rootNode.splice(position, oldExtent, newExtent, excludedIds)
+  isExclusive: (id) ->
+    @exclusiveIds.has(id)
 
   setExclusive: (id, isExclusive) ->
     if isExclusive
@@ -321,3 +355,28 @@ class MarkerIndex
     result = @findIntersecting(start, end)
     subtractSet(result, @findIntersecting(end.traverse(Point(0, 1))))
     result
+
+  clear: ->
+    @exclusiveIds = new Set
+    @rootNode = new Leaf(Point.infinity(), new Set)
+
+  dump: ->
+    snapshot = {}
+    @rootNode.ids.forEach (id) =>
+      snapshot[id] = {range: null, isExclusive: @exclusiveIds.has(id)}
+    @rootNode.dump(Point.zero(), snapshot)
+    snapshot
+
+  load: (snapshot) ->
+    @clear()
+    for id, {range: {start, end}, isExclusive} of snapshot
+      @insert(id, start, end)
+      @setExclusive(id, isExclusive)
+
+  ###
+  Section: Private
+  ###
+
+  condenseIfNeeded: ->
+    while @rootNode.children?.length is 1
+      @rootNode = @rootNode.children[0]

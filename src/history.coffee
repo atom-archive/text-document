@@ -1,8 +1,10 @@
-counter = 1
-
 class Checkpoint
-  constructor: ->
+  counter = 1
+
+  constructor: (metadata, internal) ->
     @id = counter++
+    @internal = internal ? false
+    @metadata = metadata
 
 module.exports =
 class History
@@ -10,8 +12,8 @@ class History
     @undoStack = []
     @redoStack = []
 
-  createCheckpoint: ->
-    checkpoint = new Checkpoint
+  createCheckpoint: (metadata) ->
+    checkpoint = new Checkpoint(metadata)
     @undoStack.push(checkpoint)
     checkpoint
 
@@ -44,35 +46,20 @@ class History
     groupedCheckpoint.groupingInterval = groupingInterval
 
   pushChange: (change) ->
-    @undoStack.push(new Checkpoint, change)
+    @undoStack.push(change)
     @redoStack.length = 0
 
-  popUndoStack: ->
-    firstChangeIndex = null
-    for entry, i in @undoStack by -1
-      if entry instanceof Checkpoint
-        break if firstChangeIndex?
-      else
-        firstChangeIndex = i
+  popUndoStack: (metadata) ->
+    if (checkpointIndex = @getBoundaryCheckpointIndex(@undoStack))?
+      @redoStack.push(new Checkpoint(metadata, true))
+      result = @popChanges(@undoStack, @redoStack, checkpointIndex)
+      result.changes = result.changes.map(@invertChange)
+      result
 
-    return [] unless firstChangeIndex?
-
-    invertedChanges = []
-    undoneEntries = @undoStack.splice(firstChangeIndex, @undoStack.length - firstChangeIndex)
-    for entry in undoneEntries by -1
-      @redoStack.push(entry)
-      invertedChanges.push(@invertChange(entry)) unless entry instanceof Checkpoint
-    invertedChanges
-
-  popRedoStack: ->
-    changes = []
-    while entry = @redoStack.pop()
-      @undoStack.push(entry)
-      if entry instanceof Checkpoint
-        break if changes.length > 0
-      else
-        changes.push(entry)
-    changes
+  popRedoStack: (metadata) ->
+    if (checkpointIndex = @getBoundaryCheckpointIndex(@redoStack))?
+      @undoStack.push(new Checkpoint(metadata, true))
+      @popChanges(@redoStack, @undoStack, checkpointIndex)
 
   truncateUndoStack: (checkpoint) ->
     checkpointIndex = @undoStack.lastIndexOf(checkpoint)
@@ -86,8 +73,29 @@ class History
         invertedChanges.push(@invertChange(entry))
     invertedChanges
 
-  clearRedoStack: ->
-    @redoStack.length = 0
+  ###
+  Section: Private
+  ###
+
+  getBoundaryCheckpointIndex: (stack) ->
+    result = null
+    hasSeenChanges = false
+    for entry, i in stack by -1
+      if entry instanceof Checkpoint
+        result = i if hasSeenChanges
+      else
+        hasSeenChanges = true
+        break if result?
+    result
+
+  popChanges: (fromStack, toStack, checkpointIndex) ->
+    changes = []
+    metadata = fromStack[checkpointIndex].metadata
+    for entry in fromStack.splice(checkpointIndex) by -1
+      isCheckpoint = entry instanceof Checkpoint
+      toStack.push(entry) unless isCheckpoint and entry.internal
+      changes.push(entry) unless isCheckpoint
+    {changes, metadata}
 
   invertChange: ({oldRange, newRange, oldText, newText}) ->
     Object.freeze({

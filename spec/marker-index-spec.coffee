@@ -215,9 +215,11 @@ describe "MarkerIndex", ->
 
           markerIndex.insert("starts-at-point-exclusive", Point(0, 5), Point(0, 8))
           markerIndex.insert("ends-at-point-exclusive", Point(0, 3), Point(0, 5))
-
           markerIndex.setExclusive("starts-at-point-exclusive", true)
           markerIndex.setExclusive("ends-at-point-exclusive", true)
+
+          expect(markerIndex.isExclusive("starts-at-point")).toBe false
+          expect(markerIndex.isExclusive("starts-at-point-exclusive")).toBe true
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
@@ -230,13 +232,62 @@ describe "MarkerIndex", ->
         it "treats the change as being inside markers that it intersects", ->
           markerIndex.insert("starts-at-point", Point(0, 5), Point(0, 8))
           markerIndex.insert("ends-at-point", Point(0, 3), Point(0, 5))
-          markerIndex.insert("at-point", Point(0, 5), Point(0, 5))
+          markerIndex.insert("at-point-inclusive", Point(0, 5), Point(0, 5))
+          markerIndex.insert("at-point-exclusive", Point(0, 5), Point(0, 5))
+          markerIndex.setExclusive("at-point-exclusive", true)
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
           expect(markerIndex.getRange("starts-at-point")).toEqual Range(Point(0, 5), Point(0, 12))
           expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
-          expect(markerIndex.getRange("at-point")).toEqual Range(Point(0, 5), Point(0, 9))
+          expect(markerIndex.getRange("at-point-inclusive")).toEqual Range(Point(0, 5), Point(0, 9))
+          expect(markerIndex.getRange("at-point-exclusive")).toEqual Range(Point(0, 9), Point(0, 9))
+
+    describe "when the change spans multiple rows", ->
+      it "updates markers based on the change", ->
+        markerIndex.insert("a", Point(0, 6), Point(0, 9))
+
+        markerIndex.splice(Point(0, 1), Point(0, 0), Point(1, 3))
+        expect(markerIndex.getRange("a")).toEqual Range(Point(1, 8), Point(1, 11))
+
+        markerIndex.splice(Point(0, 1), Point(1, 3), Point(0, 0))
+        expect(markerIndex.getRange("a")).toEqual Range(Point(0, 6), Point(0, 9))
+
+        markerIndex.splice(Point(0, 5), Point(0, 3), Point(1, 3))
+        expect(markerIndex.getRange("a")).toEqual Range(Point(1, 3), Point(1, 4))
+
+  describe "::dump()", ->
+    it "returns an object containing each marker's range and exclusivity", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 4))
+      markerIndex.insert("d", Point(0, 7), Point(0, 8))
+      markerIndex.setExclusive("d", true)
+
+      expect(markerIndex.dump()).toEqual {
+        "a": {range: Range(Point(0, 2), Point(0, 5)), isExclusive: false}
+        "b": {range: Range(Point(0, 3), Point(0, 7)), isExclusive: false}
+        "c": {range: Range(Point(0, 4), Point(0, 4)), isExclusive: false}
+        "d": {range: Range(Point(0, 7), Point(0, 8)), isExclusive: true}
+      }
+
+  describe "::load(snapshot)", ->
+    it "clears its contents and inserts the markers described by the given snapshot", ->
+      markerIndex.insert("x", Point(0, 1), Point(0, 2))
+
+      markerIndex.load({
+        "a": {range: Range(Point(0, 2), Point(0, 5)), isExclusive: false}
+        "b": {range: Range(Point(0, 3), Point(0, 7)), isExclusive: false}
+        "c": {range: Range(Point(0, 4), Point(0, 4)), isExclusive: false}
+        "d": {range: Range(Point(0, 7), Point(0, 8)), isExclusive: true}
+      })
+
+      expect(markerIndex.getRange("a")).toEqual Range(Point(0, 2), Point(0, 5))
+      expect(markerIndex.getRange("b")).toEqual Range(Point(0, 3), Point(0, 7))
+      expect(markerIndex.getRange("c")).toEqual Range(Point(0, 4), Point(0, 4))
+      expect(markerIndex.getRange("d")).toEqual Range(Point(0, 7), Point(0, 8))
+      expect(markerIndex.isExclusive("c")).toBe false
+      expect(markerIndex.isExclusive("d")).toBe true
 
   describe "randomized mutations", ->
     [seed, random, markers, idCounter] = []
@@ -250,14 +301,19 @@ describe "MarkerIndex", ->
         markerIndex = new MarkerIndex
 
         for j in [1..50]
-          # 80% insert, 20% delete
+          # 60% insert, 20% splice, 20% delete
 
-          if markers.length is 0 or random(10) > 2
+          if markers.length is 0 or random(10) > 4
             id = idCounter++
             [start, end] = getRange()
             # console.log "#{j}: insert(#{id}, #{start}, #{end})"
             markerIndex.insert(id, start, end)
             markers.push({id, start, end})
+          else if random(10) > 2
+            [start, oldExtent, newExtent] = getSplice()
+            # console.log "#{j}: splice(#{start}, #{oldExtent}, #{newExtent})"
+            markerIndex.splice(start, oldExtent, newExtent)
+            spliceMarkers(start, oldExtent, newExtent)
           else
             [{id}] = markers.splice(random(markers.length - 1), 1)
             # console.log "#{j}: delete(#{id})"
@@ -266,19 +322,81 @@ describe "MarkerIndex", ->
           # console.log markerIndex.rootNode.toString()
 
           for {id, start, end} in markers
-            expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id}; Seed: #{seed})"
-            expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id}; Seed: #{seed})"
-
-          return if currentSpecFailed()
+            expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id} start; Seed: #{seed})"
+            expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id} end; Seed: #{seed})"
+            return if currentSpecFailed()
 
           for k in [1..10]
             [queryStart, queryEnd] = getRange()
             # console.log "#{k}: findContaining(#{queryStart}, #{queryEnd})"
             expect(markerIndex.findContaining(queryStart, queryEnd)).toEqualSet(getExpectedContaining(queryStart, queryEnd), "(Seed: #{seed})")
+            return if currentSpecFailed()
+
+    getSplice = ->
+      start = Point(random(100), random(100))
+      oldExtent = Point(random(100 - start.row), random(100))
+      newExtent = Point(random(100 - start.row), random(100))
+      [start, oldExtent, newExtent]
+
+    spliceMarkers = (spliceStart, oldExtent, newExtent) ->
+      spliceOldEnd = spliceStart.traverse(oldExtent)
+      spliceNewEnd = spliceStart.traverse(newExtent)
+
+      shiftBySplice = (point) ->
+        spliceNewEnd.traverse(point.traversalFrom(spliceOldEnd))
+
+      for marker in markers
+        if spliceStart.compare(marker.start) < 0
+
+          # replacing text before the marker or inserting at the start of the marker
+          if spliceOldEnd.compare(marker.start) <= 0
+            marker.start = shiftBySplice(marker.start)
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text that overlaps the start of the marker
+          else if spliceOldEnd.compare(marker.end) < 0
+            marker.start = spliceNewEnd
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text surrounding the marker
+          else
+            marker.start = spliceNewEnd
+            marker.end = spliceNewEnd
+
+        else if spliceStart.isEqual(marker.start) and spliceStart.compare(marker.end) < 0
+
+          # replacing text at the start of the marker, within the marker
+          if spliceOldEnd.compare(marker.end) < 0
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text at the start of the marker, longer than the marker
+          else
+            marker.end = spliceNewEnd
+
+        else if spliceStart.compare(marker.end) < 0
+
+          # replacing text within the marker
+          if spliceOldEnd.compare(marker.end) <= 0
+            marker.end = shiftBySplice(marker.end)
+
+          # replacing text that overlaps the end of the marker
+          else if spliceOldEnd.compare(marker.end) > 0
+            marker.end = spliceNewEnd
+
+        else if spliceStart.compare(marker.end) is 0
+
+          # inserting text at the end of the marker
+          if spliceOldEnd.isEqual(marker.end)
+            marker.end = spliceNewEnd
 
     getRange = ->
-      start = Point(0, random(100))
-      end = Point(0, random.intBetween(start.column, 100))
+      start = Point(random(100), random(100))
+      endRow = random.intBetween(start.row, 100)
+      if endRow is start.row
+        endColumn = random.intBetween(start.column, 100)
+      else
+        endColumn = random.intBetween(0, 100)
+      end = Point(endRow, endColumn)
       [start, end]
 
     getExpectedContaining = (start, end) ->

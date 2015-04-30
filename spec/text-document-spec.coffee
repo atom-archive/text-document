@@ -1,4 +1,5 @@
 fs = require "fs"
+{difference} = require "underscore-plus"
 Point = require "../src/point"
 Range = require "../src/range"
 TextDocument = require "../src/text-document"
@@ -173,16 +174,21 @@ describe "TextDocument", ->
 
   describe "markers", ->
     describe "::markPosition(position, properties)", ->
-      it "returns a marker for the given position with the given properties (plus defaults)", ->
-        marker = document.markPosition([0, 6], a: '1')
-        expect(marker.getRange()).toEqual Range(Point(0, 6), Point(0, 6))
-        expect(marker.getHeadPosition()).toEqual Point(0, 6)
-        expect(marker.getTailPosition()).toEqual Point(0, 6)
-        expect(marker.getProperties()).toEqual {a: '1', invalidate: 'overlap'}
+      it "creates a tail-less marker at the given position", ->
+        marker = document.markPosition([0, 6])
+        expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+        expect(marker.getHeadPosition()).toEqual [0, 6]
+        expect(marker.getTailPosition()).toEqual [0, 6]
+        expect(marker.isReversed()).toBe false
+        expect(marker.hasTail()).toBe false
 
-        expect(marker.matchesParams({})).toBe true
-        expect(marker.matchesParams(a: '1')).toBe true
-        expect(marker.matchesParams(a: '2')).toBe false
+      it "allows an invalidation strategy to be assigned", ->
+        marker = document.markPosition([0, 3], invalidate: 'inside')
+        expect(marker.getInvalidationStrategy()).toBe 'inside'
+
+      it "allows custom state to be assigned", ->
+        marker = document.markPosition([0, 3], foo: 1, bar: 2)
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
 
       it "allows the marker to be retrieved with ::getMarker(id)", ->
         marker1 = document.markPosition([0, 6], a: '1', b: '2')
@@ -207,9 +213,9 @@ describe "TextDocument", ->
       it "returns a marker for the given range with the given properties (plus defaults)", ->
         marker = document.markRange([[0, 6], [1, 7]], a: '1')
         expect(marker.getRange()).toEqual Range(Point(0, 6), Point(1, 7))
-        expect(marker.getHeadPosition()).toEqual Point(0, 6)
-        expect(marker.getTailPosition()).toEqual Point(1, 7)
-        expect(marker.getProperties()).toEqual {a: '1', invalidate: 'overlap'}
+        expect(marker.getHeadPosition()).toEqual Point(1, 7)
+        expect(marker.getTailPosition()).toEqual Point(0, 6)
+        expect(marker.getProperties()).toEqual {a: '1'}
 
     describe "::findMarkers(properties)", ->
       [marker1, marker2, marker3, marker4] = []
@@ -279,6 +285,758 @@ describe "TextDocument", ->
         expect(document.findMarkers(containedInRange: [[0, 0], [0, 6]])).toEqual [marker2, marker1]
         expect(document.findMarkers(containedInRange: [[0, 4], [0, 7]])).toEqual [marker3]
 
+    describe "direct updates", ->
+      [marker, changes] = []
+
+      beforeEach ->
+        document.setText("abcdefghijklmnopqrstuvwxyz")
+        marker = document.markRange([[0, 6], [0, 9]])
+        changes = []
+        marker.onDidChange (change) -> changes.push(change)
+
+      describe "::setHeadPosition(position, state)", ->
+        it "sets the head position of the marker, flipping its orientation if necessary", ->
+          marker.setHeadPosition([0, 12])
+          expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+          expect(marker.isReversed()).toBe false
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
+            oldTailPosition: [0, 6], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setHeadPosition([0, 3])
+          expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+          expect(marker.isReversed()).toBe true
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
+            oldTailPosition: [0, 6], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setHeadPosition([0, 9])
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isReversed()).toBe false
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 3], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 6], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+        it "does not give the marker a tail if it doesn't have one already", ->
+          marker.clearTail()
+          expect(marker.hasTail()).toBe false
+          marker.setHeadPosition([0, 15])
+          expect(marker.hasTail()).toBe false
+          expect(marker.getRange()).toEqual [[0, 15], [0, 15]]
+
+        it "does not notify ::onDidChange observers and returns false if the position isn't actually changed", ->
+          expect(marker.setHeadPosition(marker.getHeadPosition())).toBe false
+          expect(changes.length).toBe 0
+
+        it "allows new properties to be assigned to the state", ->
+          marker.setHeadPosition([0, 12], foo: 1)
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
+            oldTailPosition: [0, 6], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {foo: 1}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setHeadPosition([0, 12], bar: 2)
+          expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
+            oldTailPosition: [0, 6], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
+            textChanged: false
+          }]
+
+        it "clips the assigned position", ->
+          marker.setHeadPosition([100, 100])
+          expect(marker.getHeadPosition()).toEqual [0, 26]
+
+      describe "::setTailPosition(position, state)", ->
+        it "sets the tail position of the marker, flipping its orientation if necessary", ->
+          marker.setTailPosition([0, 3])
+          expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
+          expect(marker.isReversed()).toBe false
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 6], newTailPosition: [0, 3]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setTailPosition([0, 12])
+          expect(marker.getRange()).toEqual [[0, 9], [0, 12]]
+          expect(marker.isReversed()).toBe true
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 3], newTailPosition: [0, 12]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setTailPosition([0, 6])
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isReversed()).toBe false
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 12], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+        it "plants the tail of the marker if it does not have a tail", ->
+          marker.clearTail()
+          expect(marker.hasTail()).toBe false
+          marker.setTailPosition([0, 0])
+          expect(marker.hasTail()).toBe true
+          expect(marker.getRange()).toEqual [[0, 0], [0, 9]]
+
+        it "does not notify ::onDidChange observers and returns false if the position isn't actually changed", ->
+          expect(marker.setTailPosition(marker.getTailPosition())).toBe false
+          expect(changes.length).toBe 0
+
+        it "allows new properties to be assigned to the state", ->
+          marker.setTailPosition([0, 3], foo: 1)
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 6], newTailPosition: [0, 3]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {foo: 1}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setTailPosition([0, 3], bar: 2)
+          expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 3], newTailPosition: [0, 3]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
+            textChanged: false
+          }]
+
+        it "clips the assigned position", ->
+          marker.setTailPosition([100, 100])
+          expect(marker.getTailPosition()).toEqual [0, 26]
+
+      describe "::setRange(range, options)", ->
+        it "sets the head and tail position simultaneously, flipping the orientation if the 'isReversed' option is true", ->
+          marker.setRange([[0, 8], [0, 12]])
+          expect(marker.getRange()).toEqual [[0, 8], [0, 12]]
+          expect(marker.isReversed()).toBe false
+          expect(marker.getHeadPosition()).toEqual [0, 12]
+          expect(marker.getTailPosition()).toEqual [0, 8]
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
+            oldTailPosition: [0, 6], newTailPosition: [0, 8]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setRange([[0, 3], [0, 9]], reversed: true)
+          expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
+          expect(marker.isReversed()).toBe true
+          expect(marker.getHeadPosition()).toEqual [0, 3]
+          expect(marker.getTailPosition()).toEqual [0, 9]
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
+            oldTailPosition: [0, 8], newTailPosition: [0, 9]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+        it "plants the tail of the marker if it does not have a tail", ->
+          marker.clearTail()
+          expect(marker.hasTail()).toBe false
+          marker.setRange([[0, 1], [0, 10]])
+          expect(marker.hasTail()).toBe true
+          expect(marker.getRange()).toEqual [[0, 1], [0, 10]]
+
+        it "allows new properties to be assigned to the state", ->
+          marker.setRange([[0, 1], [0, 2]], foo: 1)
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 2]
+            oldTailPosition: [0, 6], newTailPosition: [0, 1]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {foo: 1}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setRange([[0, 3], [0, 6]], bar: 2)
+          expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 2], newHeadPosition: [0, 6]
+            oldTailPosition: [0, 1], newTailPosition: [0, 3]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
+            textChanged: false
+          }]
+
+        it "clips the assigned range", ->
+          marker.setRange([[-100, -100], [100, 100]])
+          expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
+
+      describe "::clearTail() / ::plantTail()", ->
+        it "clears the tail / plants the tail at the current head position", ->
+          marker.setRange([[0, 6], [0, 9]], reversed: true)
+
+          changes = []
+          marker.clearTail()
+          expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+          expect(marker.hasTail()).toBe false
+          expect(marker.isReversed()).toBe false
+
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 6], newHeadPosition: [0, 6]
+            oldTailPosition: [0, 9], newTailPosition: [0, 6]
+            hadTail: true, hasTail: false
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setHeadPosition([0, 12])
+          expect(marker.getRange()).toEqual [[0, 12], [0, 12]]
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 6], newHeadPosition: [0, 12]
+            oldTailPosition: [0, 6], newTailPosition: [0, 12]
+            hadTail: false, hasTail: false
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.plantTail()
+          expect(marker.hasTail()).toBe true
+          expect(marker.isReversed()).toBe false
+          expect(marker.getRange()).toEqual [12, 12]
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
+            oldTailPosition: [0, 12], newTailPosition: [0, 12]
+            hadTail: false, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.setHeadPosition([0, 15])
+          expect(marker.getRange()).toEqual [[0, 12], [0, 15]]
+          expect(changes).toEqual [{
+            oldHeadPosition: [0, 12], newHeadPosition: [0, 15]
+            oldTailPosition: [0, 12], newTailPosition: [0, 12]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: false
+          }]
+
+          changes = []
+          marker.plantTail()
+          expect(marker.getRange()).toEqual [12, 15]
+          expect(changes).toEqual []
+
+      describe "::setProperties(properties)", ->
+        it "merges the given properties into the current properties", ->
+          marker.setProperties(foo: 1)
+          expect(marker.getProperties()).toEqual {foo: 1}
+          marker.setProperties(bar: 2)
+          expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+
+    describe "indirect updates (due to text changes)", ->
+      [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker] = []
+
+      beforeEach ->
+        document.setText("abcdefghijklmnopqrstuvwxyz")
+        overlapMarker = document.markRange([[0, 6], [0, 9]], invalidate: 'overlap')
+        neverMarker = overlapMarker.copy(invalidate: 'never')
+        surroundMarker = overlapMarker.copy(invalidate: 'surround')
+        insideMarker = overlapMarker.copy(invalidate: 'inside')
+        touchMarker = overlapMarker.copy(invalidate: 'touch')
+        allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker]
+
+      it "defers notifying Marker::onDidChange observers until after notifying Buffer::onDidChange observers", ->
+        for marker in allStrategies
+          do (marker) ->
+            marker.changes = []
+            marker.onDidChange (change) ->
+              marker.changes.push(change)
+
+        changedCount = 0
+        markersUpdatedCount = 0
+        document.onDidUpdateMarkers -> markersUpdatedCount++
+
+        changeSubscription =
+          document.onDidChange (change) ->
+            changedCount++
+            expect(markersUpdatedCount).toBe 0
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+              expect(marker.isValid()).toBe true
+              expect(marker.changes.length).toBe 0
+
+        document.setTextInRange([[0, 1], [0, 2]], "ABC")
+
+        expect(changedCount).toBe 1
+        expect(markersUpdatedCount).toBe 1
+        for marker in allStrategies
+          expect(marker.changes.length).toBe 1
+          expect(marker.changes[0]).toEqual {
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
+            oldTailPosition: [0, 6], newTailPosition: [0, 8]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: true
+          }
+
+        changeSubscription.dispose()
+        changeSubscription =
+          document.onDidChange (change) ->
+            changedCount++
+            expect(markersUpdatedCount).toBe 1
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+              expect(marker.changes.length).toBe 1
+
+        document.undo()
+
+        expect(changedCount).toBe 2
+        expect(markersUpdatedCount).toBe 2
+        for marker in allStrategies
+          expect(marker.changes.length).toBe 2
+          expect(marker.changes[1]).toEqual {
+            oldHeadPosition: [0, 11], newHeadPosition: [0, 9]
+            oldTailPosition: [0, 8], newTailPosition: [0, 6]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: true
+          }
+
+        changeSubscription.dispose()
+        changeSubscription =
+          document.onDidChange (change) ->
+            changedCount++
+            expect(markersUpdatedCount).toBe 2
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+              expect(marker.isValid()).toBe true
+              expect(marker.changes.length).toBe 2
+
+        document.redo()
+
+        expect(changedCount).toBe 3
+        expect(markersUpdatedCount).toBe 3
+        for marker in allStrategies
+          expect(marker.changes.length).toBe 3
+          expect(marker.changes[2]).toEqual {
+            oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
+            oldTailPosition: [0, 6], newTailPosition: [0, 8]
+            hadTail: true, hasTail: true
+            wasValid: true, isValid: true
+            oldProperties: {}, newProperties: {}
+            textChanged: true
+          }
+
+      describe "when a change precedes a marker", ->
+        it "shifts the marker based on the characters inserted or removed by the change", ->
+          document.setTextInRange([[0, 1], [0, 2]], "ABC")
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+          document.setTextInRange([[0, 1], [0, 1]], '\nDEF')
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[1, 10], [1, 13]]
+            expect(marker.isValid()).toBe true
+
+          for marker in allStrategies
+            marker.setRange([[1, Infinity], [1, Infinity]])
+
+          document.undo()
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+          document.undo()
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+          for marker in allStrategies
+            marker.setRange([[1, Infinity], [1, Infinity]])
+
+          document.redo()
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change follows a marker", ->
+        it "does not shift the marker", ->
+          document.setTextInRange([[0, 10], [0, 12]], "ABC")
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change starts at a marker's start position", ->
+        describe "when the marker has a tail", ->
+          it "interprets the change as being inside the marker for all invalidation strategies", ->
+            document.setTextInRange([[0, 6], [0, 7]], "ABC")
+
+            for marker in difference(allStrategies, [insideMarker, touchMarker])
+              expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+              expect(marker.isValid()).toBe true
+
+            for marker in [insideMarker, touchMarker]
+              expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+              expect(marker.isValid()).toBe(false, "for marker #{marker.id} #{marker.invalidationStrategy}")
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+        describe "when the marker has no tail", ->
+          it "interprets the change as being outside the marker for all invalidation strategies", ->
+            for marker in allStrategies
+              marker.setRange([[0, 6], [0, 11]], reversed: true)
+              marker.clearTail()
+              expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+            allStrategies.push(document.markPosition([0, 6]))
+
+            document.setTextInRange([[0, 6], [0, 6]], "ABC")
+
+            for marker in difference(allStrategies, [touchMarker])
+              expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0 ,6]]
+              expect(marker.isValid()).toBe true
+
+            for marker in allStrategies
+              marker.setRange([[0, 6], [0, 6]], reversed: false)
+              marker.clearTail()
+              expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+            document.setTextInRange([[0, 6], [0, 6]], "DEF")
+
+            for marker in difference(allStrategies, [touchMarker])
+              expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+              expect(marker.isValid()).toBe true
+
+      describe "when a change ends at a marker's start position but starts before it", ->
+        it "interprets the change as being outside the marker for all invalidation strategies except 'touch'", ->
+          document.setTextInRange([[0, 4], [0, 6]], "ABC")
+
+          for marker in difference(allStrategies, [touchMarker])
+            expect(marker.getRange()).toEqual [[0, 7], [0, 10]]
+            expect(marker.isValid()).toBe(true, "For marker #{marker.invalidationStrategy}")
+
+          expect(touchMarker.getRange()).toEqual [[0, 7], [0, 10]]
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change starts and ends at a marker's start position", ->
+        it "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
+          document.insert([0, 6], "ABC")
+
+          for marker in difference(allStrategies, [insideMarker, touchMarker])
+            expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.getRange()).toEqual [[0, 9], [0, 12]]
+          expect(insideMarker.isValid()).toBe true
+
+          expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change starts at a marker's end position", ->
+        describe "when the change is an insertion", ->
+          it "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
+            document.setTextInRange([[0, 9], [0, 9]], "ABC")
+
+            for marker in difference(allStrategies, [insideMarker, touchMarker])
+              expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+              expect(marker.isValid()).toBe true
+
+            expect(insideMarker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(insideMarker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+        describe "when the change replaces some existing text", ->
+          it "interprets the change as being outside the marker for all invalidation strategies", ->
+            document.setTextInRange([[0, 9], [0, 11]], "ABC")
+
+            for marker in difference(allStrategies, [touchMarker])
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+            expect(touchMarker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(touchMarker.isValid()).toBe false
+
+            document.undo()
+
+            for marker in allStrategies
+              expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+              expect(marker.isValid()).toBe true
+
+      describe "when a change surrounds a marker", ->
+        it "truncates the marker to the end of the change and invalidates every invalidation strategy except 'never'", ->
+          document.setTextInRange([[0, 5], [0, 10]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 8]]
+
+          for marker in difference(allStrategies, [neverMarker])
+            expect(marker.isValid()).toBe(false, "for marker #{marker.invalidationStrategy}")
+
+          expect(neverMarker.isValid()).toBe true
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change is inside a marker", ->
+        it "adjusts the marker's end position and invalidates markers with an 'inside' or 'touch' strategy", ->
+          document.setTextInRange([[0, 7], [0, 8]], "AB")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 10]]
+
+          for marker in difference(allStrategies, [insideMarker, touchMarker])
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change overlaps the start of a marker", ->
+        it "moves the start of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
+          document.setTextInRange([[0, 5], [0, 7]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 10]]
+
+          expect(neverMarker.isValid()).toBe true
+          expect(surroundMarker.isValid()).toBe true
+          expect(overlapMarker.isValid()).toBe false
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change overlaps the end of a marker", ->
+        it "moves the end of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
+          document.setTextInRange([[0, 8], [0, 10]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+
+          expect(neverMarker.isValid()).toBe true
+          expect(surroundMarker.isValid()).toBe true
+          expect(overlapMarker.isValid()).toBe false
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.isValid()).toBe false
+
+          document.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when a change precedes the creation of a marker", ->
+        it "updates the marker as normal when undoing / redoing the change", ->
+          document.append("something")
+          document.setTextInRange([[0, 1], [0, 3]], "ABC")
+
+          preservedMarker1 = document.markRange([[0, 6], [0, 7]])
+          invalidatedMarker1 = document.markRange([[0, 3], [0, 5]])
+          document.undo()
+
+          expect(preservedMarker1.getRange()).toEqual [[0, 5], [0, 6]]
+          expect(preservedMarker1.isValid()).toBe true
+          expect(invalidatedMarker1.getRange()).toEqual [[0, 3], [0, 4]]
+          expect(invalidatedMarker1.isValid()).toBe false
+
+          preservedMarker2 = document.markRange([[0, 7], [0, 9]])
+          invalidatedMarker2 = document.markRange([[0, 0], [0, 2]])
+          document.redo()
+
+          expect(preservedMarker1.getRange()).toEqual [[0, 6], [0, 7]]
+          expect(preservedMarker1.isValid()).toBe true
+          expect(invalidatedMarker1.getRange()).toEqual [[0, 3], [0, 5]]
+          expect(invalidatedMarker1.isValid()).toBe true
+
+          expect(preservedMarker2.getRange()).toEqual [[0, 8], [0, 10]]
+          expect(preservedMarker2.isValid()).toBe true
+          expect(invalidatedMarker2.getRange()).toEqual [[0, 0], [0, 4]]
+          expect(invalidatedMarker2.isValid()).toBe false
+
+          document.undo()
+
+          expect(preservedMarker1.getRange()).toEqual [[0, 5], [0, 6]]
+          expect(preservedMarker1.isValid()).toBe true
+          expect(invalidatedMarker1.getRange()).toEqual [[0, 3], [0, 4]]
+          expect(invalidatedMarker1.isValid()).toBe false
+
+          expect(preservedMarker2.getRange()).toEqual [[0, 7], [0, 9]]
+          expect(preservedMarker2.isValid()).toBe true
+          expect(invalidatedMarker2.getRange()).toEqual [[0, 0], [0, 2]]
+          expect(invalidatedMarker2.isValid()).toBe true
+
+      describe "when multiple changes occur in a transaction", ->
+        it "correctly restores markers when the transaction is undone", ->
+          document.setText('')
+
+          document.transact ->
+            document.append('foo')
+
+          document.transact ->
+            document.append('\n')
+            document.append('bar')
+
+          marker1 = document.markRange([[0, 0], [0, 3]], invalidate: 'never')
+          marker2 = document.markRange([[1, 0], [1, 3]], invalidate: 'never')
+
+          marker1Ranges = []
+          marker2Ranges = []
+          document.onDidChange ->
+            marker1Ranges.push(marker1.getRange())
+            marker2Ranges.push(marker2.getRange())
+
+          document.undo()
+
+          expect(document.getText()).toBe 'foo'
+          expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
+          expect(marker2.getRange()).toEqual([[0, 3], [0, 3]])
+          expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
+
+          marker1Ranges = []
+          marker2Ranges = []
+
+          document.redo()
+
+          expect(document.getText()).toBe 'foo\nbar'
+          expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
+          expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
+
+          # TODO: Decide if this behavior change is ok, or we need to somehow
+          # preserve the old behavior of marker positions during mid-transaction
+          # buffer change events. Currently, the above redo causes two insertions
+          # into the buffer. These insertions both happen at the markers' end
+          # positions, which causes the markers to expand. Then, when the
+          # transaction completes, the markers are restored to the correct
+          # positions using snapshots.
+
+          expect(marker1Ranges).toEqual [[[0, 0], [1, 0]], [[0, 0], [1, 3]]]
+          expect(marker2Ranges).toEqual [[[0, 3], [1, 0]], [[0, 3], [1, 3]]]
+          # expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+          # expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
+
+        it "only records marker patches for direct marker updates", ->
+          document.setText("abcd")
+          marker = document.markRange([[0, 3], [0, 3]])
+
+          document.transact ->
+            document.delete([[0, 0], [0, 1]])
+            marker.setHeadPosition([0, 4])
+            document.delete([[0, 3], [0, 4]])
+            marker.setHeadPosition([0, 3])
+
+          document.undo()
+          expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
+
     describe "Marker::destroy", ->
       it "removes the marker and calls callbacks registered with ::onDidDestroy", ->
         marker = document.markPosition([0, 6], a: '1')
@@ -288,14 +1046,6 @@ describe "TextDocument", ->
         marker.destroy()
         expect(document.getMarker(marker.id)).toBeUndefined()
         expect(destroyed).toBe true
-
-    describe "Marker::setProperties", ->
-      it "allows the properties to be retrieved", ->
-        marker = document.markPosition([0, 6], a: '1', invalidate: 'never')
-        marker.setProperties(b: '2')
-
-        expect(marker.getProperties()).toEqual(a: '1', b: '2', invalidate: 'never')
-        expect(document.findMarkers(b: '2')).toEqual [marker]
 
   describe "manipulating text", ->
     describe "::isEmpty", ->
@@ -600,8 +1350,6 @@ describe "TextDocument", ->
           result = document.revertToCheckpoint(checkpoint)
           expect(result).toBe(true)
           expect(document.getText()).toBe("hello")
-
-          return
 
           result = document.revertToCheckpoint(checkpoint2)
           expect(result).toBe(false)
