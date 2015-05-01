@@ -6,72 +6,28 @@ Random = require "random-seed"
 {getAllIteratorValues, currentSpecFailed} = require "./spec-helper"
 
 describe "BufferLayer", ->
-  describe "::slice(start, end)", ->
-    it "returns the content between the given start and end positions", ->
-      inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
-      buffer = new BufferLayer(inputLayer)
-
-      expect(buffer.slice(Point(0, 1), Point(0, 3))).toBe "bc"
-      expect(inputLayer.getRecordedReads()).toEqual ["bcd"]
-      inputLayer.reset()
-
-      expect(buffer.slice(Point(0, 2), Point(0, 4))).toBe "cd"
-      expect(inputLayer.getRecordedReads()).toEqual ["cde"]
-
-    it "returns the entire inputLayer text when no bounds are given", ->
-      inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
-      buffer = new BufferLayer(inputLayer)
-
-      expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-
   describe "iterator", ->
     describe "::next()", ->
-      it "reads from the underlying layer", ->
+      it "caches text from the underlying layer within the active region", ->
         inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
         buffer = new BufferLayer(inputLayer)
-        iterator = buffer.buildIterator()
-        iterator.seek(Point(0, 3))
 
-        expect(iterator.next()).toEqual(value:"def", done: false)
-        expect(iterator.getPosition()).toEqual(Point(0, 6))
-
-        expect(iterator.next()).toEqual(value:"ghi", done: false)
-        expect(iterator.getPosition()).toEqual(Point(0, 9))
-
-        expect(iterator.next()).toEqual(value:"jkl", done: false)
-        expect(iterator.getPosition()).toEqual(Point(0, 12))
-
-        expect(iterator.next()).toEqual(value: undefined, done: true)
-        expect(iterator.getPosition()).toEqual(Point(0, 12))
-
-        expect(inputLayer.getRecordedReads()).toEqual ["def", "ghi", "jkl", undefined]
+        expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
         inputLayer.reset()
 
-        iterator.seek(Point(0, 5))
-        expect(iterator.next()).toEqual(value:"fgh", done: false)
+        getAllIteratorValues(buffer.buildIterator())
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+        inputLayer.reset()
 
-      describe "when the buffer has an active region", ->
-        it "caches the text within the region", ->
-          inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
-          buffer = new BufferLayer(inputLayer)
+        buffer.setActiveRegion(Point(0, 4), Point(0, 7))
 
-          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-          inputLayer.reset()
+        getAllIteratorValues(buffer.buildIterator())
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+        inputLayer.reset()
 
-          getAllIteratorValues(buffer.buildIterator())
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-          inputLayer.reset()
-
-          buffer.setActiveRegion(Point(0, 4), Point(0, 7))
-
-          getAllIteratorValues(buffer.buildIterator())
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-          inputLayer.reset()
-
-          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "defghi", "jkl"]
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "jkl", undefined]
+        expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "defghi", "jkl"]
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "jkl", undefined]
 
     describe "::splice(start, extent, content)", ->
       it "replaces the extent at the given position with the given content", ->
