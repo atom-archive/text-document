@@ -1,6 +1,6 @@
 Point = require "../src/point"
 LinesTransform = require "../src/lines-transform"
-StringLayer = require "../src/string-layer"
+StringLayer = require "../spec/string-layer"
 TransformLayer = require "../src/transform-layer"
 {clip} = TransformLayer
 

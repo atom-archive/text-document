@@ -1,5 +1,5 @@
 Point = require "../src/point"
-StringLayer = require "../src/string-layer"
+StringLayer = require "../spec/string-layer"
 BufferLayer = require "../src/buffer-layer"
 SpyLayer = require "./spy-layer"
 Random = require "random-seed"

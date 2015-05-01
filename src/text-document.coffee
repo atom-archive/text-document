@@ -3,10 +3,10 @@ fs = require "fs"
 Point = require "./point"
 Range = require "./range"
 MarkerStore = require "./marker-store"
+NullLayer = require "./null-layer"
 BufferLayer = require "./buffer-layer"
-StringLayer = require "./string-layer"
-LinesTransform = require "./lines-transform"
 TransformLayer = require "./transform-layer"
+LinesTransform = require "./lines-transform"
 History = require "./history"
 
 TransactionAborted = Symbol("transaction aborted")
@@ -23,7 +23,7 @@ class TextDocument
     @refcount = 1
     @destroyed = false
     @encoding = 'utf8'
-    @bufferLayer = new BufferLayer(new StringLayer(""))
+    @bufferLayer = new BufferLayer(new NullLayer)
     @linesLayer = new TransformLayer(@bufferLayer, new LinesTransform)
     if typeof options is 'string'
       @setText(options)

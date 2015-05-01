@@ -1,7 +1,7 @@
 Point = require "../src/point"
 TransformLayer = require "../src/transform-layer"
 LinesTransform = require "../src/lines-transform"
-StringLayer = require "../src/string-layer"
+StringLayer = require "../spec/string-layer"
 
 describe "TransformLayer", ->
   describe "::getLines()", ->

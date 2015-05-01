@@ -1,6 +1,6 @@
 Point = require "../src/point"
 SoftWrapsTransform = require "../src/soft-wraps-transform"
-StringLayer = require "../src/string-layer"
+StringLayer = require "../spec/string-layer"
 SpyLayer = require "./spy-layer"
 TransformLayer = require "../src/transform-layer"
 

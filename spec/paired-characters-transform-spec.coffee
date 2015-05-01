@@ -1,6 +1,6 @@
 Point = require "../src/point"
 PairedCharactersTransform = require "../src/paired-characters-transform"
-StringLayer = require "../src/string-layer"
+StringLayer = require "../spec/string-layer"
 TransformLayer = require "../src/transform-layer"
 
 {expectMapsSymmetrically} = require "./spec-helper"

@@ -1,5 +1,5 @@
-Point = require "./point"
-Layer = require "./layer"
+Point = require "../src/point"
+Layer = require "../src/layer"
 
 module.exports =
 class StringLayer extends Layer
@@ -11,7 +11,7 @@ class StringLayer extends Layer
 
 class StringLayerIterator
   constructor: (@layer) ->
-    @seek(Point.zero())
+    @position = Point.zero()
 
   next: ->
     result = if @position.column >= @layer.content.length
