@@ -2,7 +2,6 @@ Point = require "./point"
 Range = require "./range"
 {addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
-# Max number of children allowed in a Node
 BRANCHING_THRESHOLD = 3
 
 class Node
