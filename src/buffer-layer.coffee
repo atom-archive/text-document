@@ -13,14 +13,12 @@ class BufferLayer extends Layer
   buildIterator: ->
     new BufferLayerIterator(this, @inputLayer.buildIterator(), @patch.buildIterator())
 
-  setActiveRegion: (start, end) ->
-    @activeRegionStart = start
-    @activeRegionEnd = end
+  setActiveRegion: (@activeRegionStart, @activeRegionEnd) ->
 
   contentOverlapsActiveRegion: ({column}, content) ->
-    return false unless @activeRegionStart? and @activeRegionEnd?
-    not (column + content.length < @activeRegionStart.column) and
-      not (column > @activeRegionEnd.column)
+    (@activeRegionStart? and @activeRegionEnd?) and
+      (column + content.length >= @activeRegionStart.column) and
+      (column <= @activeRegionEnd.column)
 
 class BufferLayerIterator
   constructor: (@layer, @inputIterator, @patchIterator) ->
