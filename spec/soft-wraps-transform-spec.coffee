@@ -1,7 +1,6 @@
 Point = require "../src/point"
 SoftWrapsTransform = require "../src/soft-wraps-transform"
 StringLayer = require "../spec/string-layer"
-SpyLayer = require "./spy-layer"
 TransformLayer = require "../src/transform-layer"
 
 {expectMapsSymmetrically} = require "./spec-helper"
@@ -64,7 +63,7 @@ describe "SoftWrapsTransform", ->
 
   it "reads from the input layer until it reads a newline or it exceeds the max column", ->
     layer = new TransformLayer(
-      new SpyLayer("abc defghijkl", 5),
+      new StringLayer("abc defghijkl", 5),
       new SoftWrapsTransform(10)
     )
 

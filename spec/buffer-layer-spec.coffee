@@ -8,7 +8,7 @@ Random = require "random-seed"
 describe "BufferLayer", ->
   describe "::slice(start, end)", ->
     it "returns the content between the given start and end positions", ->
-      inputLayer = new SpyLayer("abcdefghijkl", 3)
+      inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
       buffer = new BufferLayer(inputLayer)
 
       expect(buffer.slice(Point(0, 1), Point(0, 3))).toBe "bc"
@@ -19,7 +19,7 @@ describe "BufferLayer", ->
       expect(inputLayer.getRecordedReads()).toEqual ["cde"]
 
     it "returns the entire inputLayer text when no bounds are given", ->
-      inputLayer = new SpyLayer("abcdefghijkl", 3)
+      inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
       buffer = new BufferLayer(inputLayer)
 
       expect(buffer.slice()).toBe "abcdefghijkl"
@@ -28,7 +28,7 @@ describe "BufferLayer", ->
   describe "iterator", ->
     describe "::next()", ->
       it "reads from the underlying layer", ->
-        inputLayer = new SpyLayer("abcdefghijkl", 3)
+        inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
         buffer = new BufferLayer(inputLayer)
         iterator = buffer.buildIterator()
         iterator.seek(Point(0, 3))
@@ -53,7 +53,7 @@ describe "BufferLayer", ->
 
       describe "when the buffer has an active region", ->
         it "caches the text within the region", ->
-          inputLayer = new SpyLayer("abcdefghijkl", 3)
+          inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
           buffer = new BufferLayer(inputLayer)
 
           expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
@@ -75,7 +75,7 @@ describe "BufferLayer", ->
 
     describe "::splice(start, extent, content)", ->
       it "replaces the extent at the given position with the given content", ->
-        inputLayer = new SpyLayer("abcdefghijkl", 3)
+        inputLayer = new StringLayer("abcdefghijkl", 3)
         buffer = new BufferLayer(inputLayer)
 
         iterator = buffer.buildIterator()
@@ -89,7 +89,7 @@ describe "BufferLayer", ->
         expect(buffer.slice()).toBe "ab1234fghijkl"
 
         iterator.seek(Point(0, 11))
-        iterator.splice(Point(0, 3), "HELLO")
+        iterator.splice(Point(0, 2), "HELLO")
         expect(buffer.slice()).toBe "ab1234fghijHELLO"
 
   describe "randomized mutations", ->

@@ -3,35 +3,23 @@ Point = require "../src/point"
 
 module.exports =
 class SpyLayer extends Layer
-  constructor: (@text, @chunkSize) ->
+  constructor: (@inputLayer) ->
     super
     @reset()
 
   buildIterator: ->
-    new SpyLayerIterator(this)
+    new SpyLayerIterator(this, @inputLayer.buildIterator())
 
-  reset: ->
-    @recordedReads = []
-
-  getRecordedReads: ->
-    @recordedReads
+  reset: -> @recordedReads = []
+  getRecordedReads: -> @recordedReads
 
 class SpyLayerIterator
-  constructor: (@layer) ->
-    @position = Point.zero()
+  constructor: (@layer, @iterator) ->
 
   next: ->
-    if value = @layer.text.substr(@position.column, @layer.chunkSize)
-      @position.column += value.length
-      done = false
-    else
-      value = undefined
-      done = true
-    @layer.recordedReads.push(value)
-    {value, done}
+    next = @iterator.next()
+    @layer.recordedReads.push(next.value)
+    next
 
-  seek: (position) ->
-    @position = position.copy()
-
-  getPosition: ->
-    @position.copy()
+  seek: (position) -> @iterator.seek(position)
+  getPosition: -> @iterator.getPosition()

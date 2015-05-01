@@ -3,7 +3,7 @@ Layer = require "../src/layer"
 
 module.exports =
 class StringLayer extends Layer
-  constructor: (@content) ->
+  constructor: (@content, @chunkSize=@content.length) ->
     super
 
   buildIterator: ->
@@ -14,12 +14,12 @@ class StringLayerIterator
     @position = Point.zero()
 
   next: ->
-    result = if @position.column >= @layer.content.length
-      {value: undefined, done: true}
+    if @position.column >= @layer.content.length
+      return {value: undefined, done: true}
     else
-      {value: @layer.content.substring(@position.column), done: false}
-    @position = Point(0, @layer.content.length)
-    result
+      startColumn = @position.column
+      @position = Point(0, Math.min(startColumn + @layer.chunkSize, @layer.content.length))
+      {value: @layer.content.slice(startColumn, @position.column), done: false}
 
   seek: (@position) ->
     @assertValidPosition(@position)
