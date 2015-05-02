@@ -87,3 +87,54 @@ describe "SoftWrapsTransform", ->
     expectMapsSymmetrically(layer, Point(0, 5), Point(1, 0))
     expectMapsSymmetrically(layer, Point(0, 6), Point(1, 1))
     expectMapsSymmetrically(layer, Point(0, 10), Point(2, 0))
+
+  it "soft warp Japanese text with latin characters", ->
+    layer = new TransformLayer(
+      new StringLayer("君達のパッケージは、全てGitHubがいただいた。"),
+      new SoftWrapsTransform(6)
+    )
+
+    iterator = layer.buildIterator()
+    expect(iterator.next()).toEqual(value: "君達の", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 3))
+
+    expect(iterator.next()).toEqual(value: "パッケ", done: false)
+    expect(iterator.getPosition()).toEqual(Point(2, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 6))
+
+    # not allow to break before "、", so move "は" to the next line
+    expect(iterator.next()).toEqual(value: "ージ", done: false)
+    expect(iterator.getPosition()).toEqual(Point(3, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 8))
+
+    expect(iterator.next()).toEqual(value: "は、全", done: false)
+    expect(iterator.getPosition()).toEqual(Point(4, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 11))
+
+    # not allow to break "GitHub", so move "GitHub" to the next line
+    expect(iterator.next()).toEqual(value: "て", done: false)
+    expect(iterator.getPosition()).toEqual(Point(5, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 12))
+
+    expect(iterator.next()).toEqual(value: "GitHub", done: false)
+    expect(iterator.getPosition()).toEqual(Point(6, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 18))
+
+    expect(iterator.next()).toEqual(value: "がいた", done: false)
+    expect(iterator.getPosition()).toEqual(Point(7, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 21))
+
+    # not allow to break before "。", so move "た" to the next line
+    expect(iterator.next()).toEqual(value: "だい", done: false)
+    expect(iterator.getPosition()).toEqual(Point(8, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 23))
+
+    expect(iterator.next()).toEqual(value: "た。", done: false)
+    expect(iterator.getPosition()).toEqual(Point(9, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 25))
+
+    expect(iterator.next()).toEqual {value: undefined, done: true}
+    expect(iterator.next()).toEqual {value: undefined, done: true}
+    expect(iterator.getPosition()).toEqual(Point(9, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 25))
