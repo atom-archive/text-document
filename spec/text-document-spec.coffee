@@ -1,5 +1,5 @@
 fs = require "fs"
-{difference} = require "underscore"
+{difference} = require "./spec-helper"
 Point = require "../src/point"
 Range = require "../src/range"
 TextDocument = require "../src/text-document"

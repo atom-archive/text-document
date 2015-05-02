@@ -51,7 +51,13 @@ setToArray = (set) ->
   set.forEach (item) -> items.push(item)
   items.sort()
 
+difference = (arrayA, arrayB) ->
+  diff = []
+  for element in arrayA
+    diff.push(element) unless element in arrayB
+  diff
+
 module.exports = {
   currentSpecFailed, expectMapsToInput, expectMapsFromInput,
-  expectMapsSymmetrically, toEqualSet, getAllIteratorValues
+  expectMapsSymmetrically, toEqualSet, getAllIteratorValues, difference
 }
