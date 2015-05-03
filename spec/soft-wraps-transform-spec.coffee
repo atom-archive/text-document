@@ -99,12 +99,12 @@ describe "SoftWrapsTransform", ->
     expect(iterator.getPosition()).toEqual(Point(1, 0))
     expect(iterator.getInputPosition()).toEqual(Point(0, 3))
 
-    expect(iterator.next()).toEqual(value: "パッケ", done: false)
+    # not allow to break before "ー", so move "ケ" to the next line
+    expect(iterator.next()).toEqual(value: "パッ", done: false)
     expect(iterator.getPosition()).toEqual(Point(2, 0))
-    expect(iterator.getInputPosition()).toEqual(Point(0, 6))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 5))
 
-    # not allow to break before "、", so move "は" to the next line
-    expect(iterator.next()).toEqual(value: "ージ", done: false)
+    expect(iterator.next()).toEqual(value: "ケージ", done: false)
     expect(iterator.getPosition()).toEqual(Point(3, 0))
     expect(iterator.getInputPosition()).toEqual(Point(0, 8))
 
@@ -131,10 +131,10 @@ describe "SoftWrapsTransform", ->
     expect(iterator.getInputPosition()).toEqual(Point(0, 23))
 
     expect(iterator.next()).toEqual(value: "た。", done: false)
-    expect(iterator.getPosition()).toEqual(Point(9, 0))
+    expect(iterator.getPosition()).toEqual(Point(8, 2))
     expect(iterator.getInputPosition()).toEqual(Point(0, 25))
 
     expect(iterator.next()).toEqual {value: undefined, done: true}
     expect(iterator.next()).toEqual {value: undefined, done: true}
-    expect(iterator.getPosition()).toEqual(Point(9, 0))
+    expect(iterator.getPosition()).toEqual(Point(8, 2))
     expect(iterator.getInputPosition()).toEqual(Point(0, 25))
