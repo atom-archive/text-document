@@ -1,11 +1,27 @@
 Point = require './point'
 WhitespaceRegExp = /\s/
+unless document?
+  Canvas = require 'canvas'
 
 module.exports =
 class SoftWrapsTransform
-  constructor: (@maxColumn) ->
+  constructor: (@maxColumn, @calcProportionalSize = false,
+      {fontFamily, fontSize, baseCharacter} = {"", 0, 'x'}) ->
+    if @calcProportionalSize
+      # HACK: chromium can use document, but pure node.js uses node-canvas
+      canvas = document?.createElement("canvas") || new Canvas(0, 0)
+      @context = canvas.getContext("2d")
+      # TODO: if fontFamily contains "'", then fontFamily is broken
+      @context.font = "#{fontSize}px '#{fontFamily}'"
+      @baseWidth = @context.measureText(baseCharacter).width
 
   operate: ({read, transform, getPosition}) ->
+    if @calcProportionalSize
+      @operateProportionalSize({read, transform, getPosition})
+    else
+      @operateSingleSize({read, transform, getPosition})
+
+  operateSingleSize: ({read, transform, getPosition}) ->
     {column} = getPosition()
     startColumn = column
     lastWhitespaceColumn = null
@@ -35,3 +51,6 @@ class SoftWrapsTransform
 
     if output.length > 0
       transform(output.length)
+
+  operateProportionalSize: ({read, transform, getPosition}) ->
+    return

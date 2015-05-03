@@ -91,7 +91,7 @@ describe "SoftWrapsTransform", ->
   it "soft warp Japanese text with latin characters", ->
     layer = new TransformLayer(
       new StringLayer("君達のパッケージは、全てGitHubがいただいた。"),
-      new SoftWrapsTransform(6)
+      new SoftWrapsTransform(6, true)
     )
 
     iterator = layer.buildIterator()

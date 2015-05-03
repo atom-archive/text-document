@@ -24,6 +24,7 @@
     "event-kit": "^1.0.3"
   },
   "devDependencies": {
+    "canvas": "^1.2.2",
     "coffee-cache": "^0.2.0",
     "coffee-script": "^1.7.0",
     "grunt": "^0.4.1",
