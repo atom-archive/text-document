@@ -24,7 +24,7 @@ class SoftWrapsTransform
   ]///
 
   constructor: (@maxColumn, @calcProportionalSize = false,
-      fontFamily = "", fontSize = 0, baseCharacter = 'x') ->
+      fontSize = 0, fontFamily = "", baseCharacter = 'x') ->
     if @calcProportionalSize
       # HACK: chromium can use document, but pure node.js uses node-canvas
       canvas = document?.createElement("canvas") || new Canvas(0, 0)
