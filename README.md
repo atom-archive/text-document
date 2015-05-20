@@ -1,4 +1,11 @@
+
+
+
 # text-document [![Build Status](https://travis-ci.org/atom/text-document.svg?branch=master)](https://travis-ci.org/atom/text-document)
+
+**Hey there, this library isn't being developed lately, but much of what we learned building it is being introduced into Atom incrementally. We decided it wasn't necessarily to replace this large a piece of the system at once, but it was good to get a chance to think for a while with a clean slate.**
+
+------
 
 This library will replace TextBuffer, TokenizedBuffer, and DisplayBuffer in Atom with API-compatible alternatives that perform better and consume vastly less memory.
 
