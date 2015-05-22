@@ -87,3 +87,80 @@ describe "SoftWrapsTransform", ->
     expectMapsSymmetrically(layer, Point(0, 5), Point(1, 0))
     expectMapsSymmetrically(layer, Point(0, 6), Point(1, 1))
     expectMapsSymmetrically(layer, Point(0, 10), Point(2, 0))
+
+  it "soft warp Japanese text with latin characters", ->
+    layer = new TransformLayer(
+      new StringLayer("君達のパッケージは、全てGitHubがいただいた。"),
+      new SoftWrapsTransform(6, true, 14, "Noto Sans")
+    )
+
+    iterator = layer.buildIterator()
+    expect(iterator.next()).toEqual(value: "君達の", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 3))
+
+    # not allow to break before "ー", so move "ケ" to the next line
+    expect(iterator.next()).toEqual(value: "パッ", done: false)
+    expect(iterator.getPosition()).toEqual(Point(2, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 5))
+
+    expect(iterator.next()).toEqual(value: "ケージ", done: false)
+    expect(iterator.getPosition()).toEqual(Point(3, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 8))
+
+    expect(iterator.next()).toEqual(value: "は、全", done: false)
+    expect(iterator.getPosition()).toEqual(Point(4, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 11))
+
+    # not allow to break "GitHub", so move "GitHub" to the next line
+    expect(iterator.next()).toEqual(value: "て", done: false)
+    expect(iterator.getPosition()).toEqual(Point(5, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 12))
+
+    expect(iterator.next()).toEqual(value: "GitHub", done: false)
+    expect(iterator.getPosition()).toEqual(Point(6, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 18))
+
+    expect(iterator.next()).toEqual(value: "がいた", done: false)
+    expect(iterator.getPosition()).toEqual(Point(7, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 21))
+
+    # not allow to break before "。", so move "た" to the next line
+    expect(iterator.next()).toEqual(value: "だい", done: false)
+    expect(iterator.getPosition()).toEqual(Point(8, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 23))
+
+    expect(iterator.next()).toEqual(value: "た。", done: false)
+    expect(iterator.getPosition()).toEqual(Point(8, 2))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 25))
+
+    expect(iterator.next()).toEqual {value: undefined, done: true}
+    expect(iterator.next()).toEqual {value: undefined, done: true}
+    expect(iterator.getPosition()).toEqual(Point(8, 2))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 25))
+
+  it "calculate proportinal font size", ->
+    layer = new TransformLayer(
+      new StringLayer("All your package are belong to us."),
+      new SoftWrapsTransform(30, true, 14, "Georgia")
+    )
+
+    iterator = layer.buildIterator()
+    expect(iterator.next()).toEqual(value: "All your package are belong to us.", done: false)
+    expect(iterator.getPosition()).toEqual(Point(0, 34))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 34))
+
+  it "calculate monospace font size", ->
+    layer = new TransformLayer(
+      new StringLayer("All your package are belong to us."),
+      new SoftWrapsTransform(30, true, 14, "Courier New")
+    )
+
+    iterator = layer.buildIterator()
+    expect(iterator.next()).toEqual(value: "All your package are belong ", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 0))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 28))
+
+    expect(iterator.next()).toEqual(value: "to us.", done: false)
+    expect(iterator.getPosition()).toEqual(Point(1, 6))
+    expect(iterator.getInputPosition()).toEqual(Point(0, 34))
