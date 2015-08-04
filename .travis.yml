@@ -9,3 +9,7 @@ notifications:
 node_js:
   - "0.12"
   - "iojs"
+
+branches:
+  only:
+    - master
