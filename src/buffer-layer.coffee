@@ -26,30 +26,30 @@ class BufferLayerIterator
     @inputPosition = Point.zero()
 
   next: ->
-    comparison = @patchIterator.getPosition().compare(@position)
+    comparison = @patchIterator.getOutputPosition().compare(@position)
     if comparison <= 0
       @patchIterator.seek(@position) if comparison < 0
       next = @patchIterator.next()
       if next.value?
-        @position = @patchIterator.getPosition()
+        @position = @patchIterator.getOutputPosition()
         @inputPosition = @patchIterator.getInputPosition()
-        return {value: next.value, done: next.done}
+        return next
 
     @inputIterator.seek(@inputPosition)
     next = @inputIterator.next()
     nextInputPosition = @inputIterator.getPosition()
 
     inputOvershoot = @inputIterator.getPosition().traversalFrom(@patchIterator.getInputPosition())
-    if inputOvershoot.compare(Point.zero()) > 0
-      next.value = next.value.substring(0, next.value.length - inputOvershoot.column)
-      nextPosition = @patchIterator.getPosition()
+    if inputOvershoot.isPositive()
+      next.value = next.value.slice(0, next.value.length - inputOvershoot.column) if next.value
+      nextPosition = @patchIterator.getOutputPosition()
     else
       nextPosition = @position.traverse(nextInputPosition.traversalFrom(@inputPosition))
 
     if next.value? and @layer.contentOverlapsActiveRegion(@position, next.value)
       @patchIterator.seek(@position)
       extent = Point(0, next.value.length ? 0)
-      @patchIterator.splice(extent, next.value)
+      @patchIterator.splice(extent, Point(0, next.value.length), next.value)
 
     @inputPosition = nextInputPosition
     @position = nextPosition
@@ -67,7 +67,7 @@ class BufferLayerIterator
     @inputPosition.copy()
 
   splice: (extent, content) ->
-    @patchIterator.splice(extent, content)
-    @position = @patchIterator.getPosition()
+    @patchIterator.splice(extent, Point(0, content.length), content)
+    @position = @patchIterator.getOutputPosition()
     @inputPosition = @patchIterator.getInputPosition()
     @inputIterator.seek(@inputPosition)

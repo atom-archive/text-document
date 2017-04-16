@@ -3,75 +3,31 @@ StringLayer = require "../spec/string-layer"
 BufferLayer = require "../src/buffer-layer"
 SpyLayer = require "./spy-layer"
 Random = require "random-seed"
-{getAllIteratorValues} = require "./spec-helper"
+{getAllIteratorValues, currentSpecFailed} = require "./spec-helper"
 
 describe "BufferLayer", ->
-  describe "::slice(start, end)", ->
-    it "returns the content between the given start and end positions", ->
-      inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
-      buffer = new BufferLayer(inputLayer)
-
-      expect(buffer.slice(Point(0, 1), Point(0, 3))).toBe "bc"
-      expect(inputLayer.getRecordedReads()).toEqual ["bcd"]
-      inputLayer.reset()
-
-      expect(buffer.slice(Point(0, 2), Point(0, 4))).toBe "cd"
-      expect(inputLayer.getRecordedReads()).toEqual ["cde"]
-
-    it "returns the entire inputLayer text when no bounds are given", ->
-      inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
-      buffer = new BufferLayer(inputLayer)
-
-      expect(buffer.slice()).toBe "abcdefghijkl"
-      expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-
   describe "iterator", ->
     describe "::next()", ->
-      it "reads from the underlying layer", ->
+      it "caches text from the underlying layer within the active region", ->
         inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
         buffer = new BufferLayer(inputLayer)
-        iterator = buffer.buildIterator()
-        iterator.seek(Point(0, 3))
 
-        expect(iterator.next()).toEqual(value:"def", done: false)
-        expect(iterator.getPosition()).toEqual(Point(0, 6))
-
-        expect(iterator.next()).toEqual(value:"ghi", done: false)
-        expect(iterator.getPosition()).toEqual(Point(0, 9))
-
-        expect(iterator.next()).toEqual(value:"jkl", done: false)
-        expect(iterator.getPosition()).toEqual(Point(0, 12))
-
-        expect(iterator.next()).toEqual(value: undefined, done: true)
-        expect(iterator.getPosition()).toEqual(Point(0, 12))
-
-        expect(inputLayer.getRecordedReads()).toEqual ["def", "ghi", "jkl", undefined]
+        expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
         inputLayer.reset()
 
-        iterator.seek(Point(0, 5))
-        expect(iterator.next()).toEqual(value:"fgh", done: false)
+        getAllIteratorValues(buffer.buildIterator())
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+        inputLayer.reset()
 
-      describe "when the buffer has an active region", ->
-        it "caches the text within the region", ->
-          inputLayer = new SpyLayer(new StringLayer("abcdefghijkl", 3))
-          buffer = new BufferLayer(inputLayer)
+        buffer.setActiveRegion(Point(0, 4), Point(0, 7))
 
-          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-          inputLayer.reset()
+        getAllIteratorValues(buffer.buildIterator())
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
+        inputLayer.reset()
 
-          getAllIteratorValues(buffer.buildIterator())
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-          inputLayer.reset()
-
-          buffer.setActiveRegion(Point(0, 4), Point(0, 7))
-
-          getAllIteratorValues(buffer.buildIterator())
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "def", "ghi", "jkl", undefined]
-          inputLayer.reset()
-
-          expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "def", "ghi", "jkl"]
-          expect(inputLayer.getRecordedReads()).toEqual ["abc", "jkl", undefined]
+        expect(getAllIteratorValues(buffer.buildIterator())).toEqual ["abc", "defghi", "jkl"]
+        expect(inputLayer.getRecordedReads()).toEqual ["abc", "jkl", undefined]
 
     describe "::splice(start, extent, content)", ->
       it "replaces the extent at the given position with the given content", ->
@@ -93,32 +49,49 @@ describe "BufferLayer", ->
         expect(buffer.slice()).toBe "ab1234fghijHELLO"
 
   describe "randomized mutations", ->
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    getSplice = (random, length) ->
+      operation = random(10)
+      start = random(length)
+      oldLength = random((length - start) / 2)
+      newLength = random(20)
+      newContent = (alphabet[random(26)].toUpperCase() for k in [0..newLength]).join("")
+
+      # 60% insertions, 20% deletions, 20% replacements
+      if operation < 6
+        [start, 0, newContent]
+      else if operation < 8
+        [start, oldLength, ""]
+      else
+        [start, oldLength, newContent]
+
     it "behaves as if it were reading and writing directly to the underlying layer", ->
-      for i in [0..30] by 1
+      for i in [0..20] by 1
         seed = Date.now()
-        # seed = 1426552034823
+        # seed = 1430431912858
+        # console.log 'seed', seed
         random = new Random(seed)
 
-        oldContent = "abcdefghijklmnopqrstuvwxyz"
-        inputLayer = new StringLayer(oldContent)
-        buffer = new BufferLayer(inputLayer)
+        oldContent = Array(4).join(alphabet)
         reference = new StringLayer(oldContent)
+        buffer = new BufferLayer(new StringLayer(oldContent))
 
-        for j in [0..10] by 1
-          currentContent = buffer.slice()
-          newContentLength = random(20)
-          newContent = (oldContent[random(26)] for k in [0..newContentLength]).join("").toUpperCase()
-
-          startColumn = random(currentContent.length)
-          endColumn = random.intBetween(startColumn, currentContent.length)
+        for j in [0..50] by 1
+          [startColumn, columnCount, newContent] = getSplice(random, buffer.slice().length)
           start = Point(0, startColumn)
-          extent = Point(0, endColumn - startColumn)
+          extent = Point(0, columnCount)
 
-          # console.log buffer.slice()
-          # console.log "buffer.splice(#{start}, #{extent}, #{newContent})"
+          # console.log "#{j}: splice(#{start}, #{extent}, '#{newContent}')"
 
           reference.splice(start, extent, newContent)
           buffer.splice(start, extent, newContent)
 
+          # console.log ""
+          # console.log buffer.patch.rootNode.toString()
+          # console.log ""
+          # console.log buffer.slice()
+          # console.log ""
+
           expect(buffer.slice()).toBe(reference.slice(), "Seed: #{seed}, Iteration: #{j}")
-          return unless buffer.slice() is reference.slice()
+          return if currentSpecFailed()
